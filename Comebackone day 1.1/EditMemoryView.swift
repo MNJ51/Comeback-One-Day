@@ -29,6 +29,8 @@ struct EditMemoryView: View {
     @State private var name: String
     @State private var category: Category
     @State private var dateVisited: Date
+    @State private var rating: Int
+    @State private var notes: String
     @State private var photos: [EditablePhoto]
 
     @State private var pickerItems: [PhotosPickerItem] = []
@@ -40,6 +42,8 @@ struct EditMemoryView: View {
         _name = State(initialValue: memory.name)
         _category = State(initialValue: memory.category)
         _dateVisited = State(initialValue: memory.dateVisited ?? Date())
+        _rating = State(initialValue: memory.rating)
+        _notes = State(initialValue: memory.notes)
         _photos = State(initialValue: memory.photoFilenames.map { EditablePhoto(filename: $0, data: nil) })
     }
 
@@ -61,6 +65,17 @@ struct EditMemoryView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                }
+
+                Section("Rating & Notes") {
+                    HStack {
+                        Text("Rating")
+                        Spacer()
+                        StarRatingPicker(rating: $rating)
+                    }
+
+                    TextField("What made it special?", text: $notes, axis: .vertical)
+                        .lineLimit(3...6)
                 }
 
                 Section("Photos") {
@@ -147,6 +162,8 @@ struct EditMemoryView: View {
         updated.name = name.trimmingCharacters(in: .whitespaces)
         updated.category = category
         updated.dateVisited = dateVisited
+        updated.rating = rating
+        updated.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
 
         // Remove files for photos the user deleted in this session.
         let keptFilenames = Set(photos.compactMap(\.filename))

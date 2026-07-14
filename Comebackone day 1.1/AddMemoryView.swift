@@ -54,6 +54,8 @@ struct AddMemoryView: View {
     @State private var name = ""
     @State private var category = Category.restaurant
     @State private var dateVisited = Date()
+    @State private var rating = 0
+    @State private var notes = ""
 
     @State private var searchText = ""
     @State private var selectedCoordinate: CLLocationCoordinate2D?
@@ -136,6 +138,17 @@ struct AddMemoryView: View {
                             .allowsHitTesting(false)
                         }
                     }
+                }
+
+                Section("Rating & Notes") {
+                    HStack {
+                        Text("Rating")
+                        Spacer()
+                        StarRatingPicker(rating: $rating)
+                    }
+
+                    TextField("What made it special?", text: $notes, axis: .vertical)
+                        .lineLimit(3...6)
                 }
 
                 Section("Photos") {
@@ -239,6 +252,8 @@ struct AddMemoryView: View {
             category: category,
             photoFilenames: filenames,
             address: selectedAddress,
+            rating: rating,
+            notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
             dateVisited: dateVisited
         )
         store.add(newMemory)

@@ -46,10 +46,13 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     var category: Category
     var photoFilenames: [String]
     var address: String?
+    /// 0 means unrated, otherwise 1–5 stars.
+    var rating: Int
+    var notes: String
     let dateAdded: Date
     var dateVisited: Date?
 
-    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, dateAdded: Date = Date(), dateVisited: Date? = nil) {
+    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil) {
         self.id = id
         self.name = name
         self.latitude = latitude
@@ -57,6 +60,8 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         self.category = category
         self.photoFilenames = photoFilenames
         self.address = address
+        self.rating = rating
+        self.notes = notes
         self.dateAdded = dateAdded
         self.dateVisited = dateVisited
     }
@@ -71,7 +76,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, dateAdded, dateVisited
+        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, rating, notes, dateAdded, dateVisited
     }
 
     init(from decoder: Decoder) throws {
@@ -90,6 +95,8 @@ struct TravelMemory: Identifiable, Codable, Equatable {
             photoFilenames = []
         }
         address = try container.decodeIfPresent(String.self, forKey: .address)
+        rating = try container.decodeIfPresent(Int.self, forKey: .rating) ?? 0
+        notes = try container.decodeIfPresent(String.self, forKey: .notes) ?? ""
         dateAdded = try container.decode(Date.self, forKey: .dateAdded)
         dateVisited = try container.decodeIfPresent(Date.self, forKey: .dateVisited)
     }
@@ -103,6 +110,8 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         try container.encode(category, forKey: .category)
         try container.encode(photoFilenames, forKey: .photoFilenames)
         try container.encodeIfPresent(address, forKey: .address)
+        try container.encode(rating, forKey: .rating)
+        try container.encode(notes, forKey: .notes)
         try container.encode(dateAdded, forKey: .dateAdded)
         try container.encodeIfPresent(dateVisited, forKey: .dateVisited)
     }

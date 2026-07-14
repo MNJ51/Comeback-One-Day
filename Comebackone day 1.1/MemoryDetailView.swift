@@ -45,6 +45,8 @@ struct MemoryDetailView: View {
                                 .font(.title)
                                 .bold()
 
+                            StarRatingLabel(rating: memory.rating)
+
                             HStack {
                                 Image(systemName: "tag.fill")
                                     .foregroundStyle(memory.category.color)
@@ -72,6 +74,13 @@ struct MemoryDetailView: View {
                                 Image(systemName: "clock")
                                 Text("Added: \(memory.dateAdded, style: .date)")
                                     .foregroundStyle(.secondary)
+                            }
+
+                            if !memory.notes.isEmpty {
+                                Text(memory.notes)
+                                    .padding(12)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -112,6 +121,11 @@ struct MemoryDetailView: View {
                         }
                     }
                     ToolbarItem(placement: .primaryAction) {
+                        ShareLink(item: shareText(for: memory)) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
                         Menu {
                             Button(action: {
                                 showingEdit = true
@@ -148,6 +162,21 @@ struct MemoryDetailView: View {
                 }
             }
         }
+    }
+
+    private func shareText(for memory: TravelMemory) -> String {
+        var lines = [memory.name]
+        if memory.rating > 0 {
+            lines.append(String(repeating: "★", count: memory.rating))
+        }
+        if let address = memory.address {
+            lines.append(address)
+        }
+        if !memory.notes.isEmpty {
+            lines.append(memory.notes)
+        }
+        lines.append("https://maps.apple.com/?ll=\(memory.latitude),\(memory.longitude)&q=\(memory.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? memory.name)")
+        return lines.joined(separator: "\n")
     }
 
     // Memories created before address support (or via Quick Camera) look up

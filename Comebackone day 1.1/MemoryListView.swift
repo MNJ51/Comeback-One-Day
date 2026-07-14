@@ -8,9 +8,26 @@ import SwiftUI
 struct MemoryListView: View {
     @EnvironmentObject var store: MemoryStore
     @State private var selectedMemory: TravelMemory?
+    @State private var searchText = ""
+    @State private var filterCategory: Category?
 
-    private var sortedMemories: [TravelMemory] {
-        store.memories.sorted {
+    private var visibleMemories: [TravelMemory] {
+        var result = store.memories
+
+        if let filterCategory {
+            result = result.filter { $0.category == filterCategory }
+        }
+
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        if !query.isEmpty {
+            result = result.filter {
+                $0.name.localizedCaseInsensitiveContains(query)
+                    || ($0.address?.localizedCaseInsensitiveContains(query) ?? false)
+                    || $0.notes.localizedCaseInsensitiveContains(query)
+            }
+        }
+
+        return result.sorted {
             ($0.dateVisited ?? $0.dateAdded) > ($1.dateVisited ?? $1.dateAdded)
         }
     }
@@ -24,9 +41,11 @@ struct MemoryListView: View {
                         systemImage: "mappin.slash",
                         description: Text("Add your first memory from the Map tab.")
                     )
+                } else if visibleMemories.isEmpty {
+                    ContentUnavailableView.search
                 } else {
                     List {
-                        ForEach(sortedMemories) { memory in
+                        ForEach(visibleMemories) { memory in
                             Button(action: {
                                 selectedMemory = memory
                             }) {
@@ -39,6 +58,23 @@ struct MemoryListView: View {
                 }
             }
             .navigationTitle("My Places")
+            .searchable(text: $searchText, prompt: "Search places, addresses, notes")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Picker("Category", selection: $filterCategory) {
+                            Text("All Categories").tag(Category?.none)
+                            ForEach(Category.allCases) { cat in
+                                Label(cat.rawValue, systemImage: cat.icon).tag(Category?.some(cat))
+                            }
+                        }
+                    } label: {
+                        Image(systemName: filterCategory == nil
+                              ? "line.3.horizontal.decrease.circle"
+                              : "line.3.horizontal.decrease.circle.fill")
+                    }
+                }
+            }
             .sheet(item: $selectedMemory) { memory in
                 MemoryDetailView(memoryID: memory.id)
             }
@@ -46,9 +82,9 @@ struct MemoryListView: View {
     }
 
     private func delete(at offsets: IndexSet) {
-        let sorted = sortedMemories
+        let visible = visibleMemories
         for index in offsets {
-            store.delete(sorted[index])
+            store.delete(visible[index])
         }
     }
 }
@@ -92,6 +128,8 @@ struct MemoryRow: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+
+                StarRatingLabel(rating: memory.rating, font: .caption2)
             }
 
             Spacer()
