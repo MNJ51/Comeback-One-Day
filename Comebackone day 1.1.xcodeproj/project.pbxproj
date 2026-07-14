@@ -400,7 +400,9 @@
 				DEVELOPMENT_TEAM = 6GFY2S7G8X;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				CODE_SIGN_ENTITLEMENTS = "Comebackone day 1.1/Comebackone day 1.1.entitlements";
 				INFOPLIST_KEY_CFBundleDisplayName = "Come Back One Day";
+				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of places you want to remember.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Your location is used to tag memories with the place you're visiting and show it on the map.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -435,7 +437,9 @@
 				DEVELOPMENT_TEAM = 6GFY2S7G8X;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				CODE_SIGN_ENTITLEMENTS = "Comebackone day 1.1/Comebackone day 1.1.entitlements";
 				INFOPLIST_KEY_CFBundleDisplayName = "Come Back One Day";
+				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of places you want to remember.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Your location is used to tag memories with the place you're visiting and show it on the map.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

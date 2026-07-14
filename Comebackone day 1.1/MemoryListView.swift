@@ -59,6 +59,9 @@ struct MemoryListView: View {
             }
             .navigationTitle("My Places")
             .searchable(text: $searchText, prompt: "Search places, addresses, notes")
+            .refreshable {
+                await store.syncNow()
+            }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Menu {

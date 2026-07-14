@@ -15,34 +15,63 @@ class MemoryStore: ObservableObject {
     }
 
     private var isLoading = false
+    private var sync: CloudSyncManager?
 
     private let fileURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("memories.json")
 
     private static let legacyDefaultsKey = "SavedMemories"
-    private static let seedFlagKey = "DidSeedSampleMemories"
 
     init() {
         load()
+        sync = CloudSyncManager(store: self)
     }
 
     func add(_ memory: TravelMemory) {
         memories.append(memory)
+        sync?.queueSave(memory.id)
     }
 
     func update(_ memory: TravelMemory) {
         if let index = memories.firstIndex(where: { $0.id == memory.id }) {
             memories[index] = memory
+            sync?.queueSave(memory.id)
         }
     }
 
     func delete(_ memory: TravelMemory) {
         PhotoStore.delete(memory.photoFilenames)
         memories.removeAll { $0.id == memory.id }
+        sync?.queueDelete(memory.id)
     }
 
     func memory(withID id: UUID) -> TravelMemory? {
         memories.first { $0.id == id }
+    }
+
+    /// Fetches remote changes and pushes pending local ones.
+    func syncNow() async {
+        await sync?.syncNow()
+    }
+
+    // MARK: - Applying changes that arrived from iCloud
+    // These update local state only; they must not queue new sync work.
+
+    func applyRemoteSave(_ memory: TravelMemory) {
+        if let index = memories.firstIndex(where: { $0.id == memory.id }) {
+            let removedPhotos = memories[index].photoFilenames.filter { !memory.photoFilenames.contains($0) }
+            PhotoStore.delete(removedPhotos)
+            memories[index] = memory
+        } else {
+            memories.append(memory)
+        }
+    }
+
+    func applyRemoteDelete(id: UUID) {
+        if let existing = memories.first(where: { $0.id == id }) {
+            PhotoStore.delete(existing.photoFilenames)
+            memories.removeAll { $0.id == id }
+        }
     }
 
     // MARK: - Persistence
@@ -69,10 +98,6 @@ class MemoryStore: ObservableObject {
             memories = migrated
             writeToDisk()
             UserDefaults.standard.removeObject(forKey: Self.legacyDefaultsKey)
-        } else if !UserDefaults.standard.bool(forKey: Self.seedFlagKey) {
-            memories = Self.sampleMemories
-            writeToDisk()
-            UserDefaults.standard.set(true, forKey: Self.seedFlagKey)
         }
     }
 
@@ -113,12 +138,4 @@ class MemoryStore: ObservableObject {
         }
     }
 
-    // MARK: - Sample data (first launch only)
-
-    private static let sampleMemories: [TravelMemory] = [
-        TravelMemory(name: "South Bank", latitude: -27.4698, longitude: 153.0251, category: .location, dateVisited: Date()),
-        TravelMemory(name: "Story Bridge Hotel", latitude: -27.4633, longitude: 153.0515, category: .restaurant, dateVisited: Date()),
-        TravelMemory(name: "Eagle Street Pier", latitude: -27.4689, longitude: 153.0299, category: .location, dateVisited: Date()),
-        TravelMemory(name: "Christian Jacques Bakery", latitude: -27.4707, longitude: 153.0387, category: .foodMarket, dateVisited: Date())
-    ]
 }

@@ -11,6 +11,7 @@ import MapKit
 struct ContentView: View {
     @StateObject private var store = MemoryStore()
     @StateObject private var locationManager = LocationManager()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         TabView {
@@ -26,6 +27,13 @@ struct ContentView: View {
         }
         .environmentObject(store)
         .environmentObject(locationManager)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task {
+                    await store.syncNow()
+                }
+            }
+        }
     }
 }
 
