@@ -41,10 +41,14 @@ struct MapTabView: View {
     @EnvironmentObject var store: MemoryStore
     @EnvironmentObject var locationManager: LocationManager
 
-    @State private var cameraPosition = MapCameraPosition.region(
-        MKCoordinateRegion(
-            center: CLLocationCoordinate2D(latitude: -27.4705, longitude: 153.0260),
-            span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+    // Start on the user's current location; fall back to a default region
+    // while location is loading or if permission is denied.
+    @State private var cameraPosition = MapCameraPosition.userLocation(
+        fallback: .region(
+            MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: -27.4705, longitude: 153.0260),
+                span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
+            )
         )
     )
 
