@@ -80,6 +80,10 @@ struct EditMemoryView: View {
 
                 Section("Photos") {
                     if !photos.isEmpty {
+                        Text("Drag to reorder. The first photo is the cover.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 10) {
                                 ForEach(photos) { photo in
@@ -89,6 +93,17 @@ struct EditMemoryView: View {
                                             .scaledToFill()
                                             .frame(width: 80, height: 80)
                                             .clipShape(RoundedRectangle(cornerRadius: 10))
+                                            .overlay(alignment: .bottomLeading) {
+                                                if photos.first?.id == photo.id {
+                                                    Text("Cover")
+                                                        .font(.caption2.weight(.semibold))
+                                                        .padding(.horizontal, 6)
+                                                        .padding(.vertical, 2)
+                                                        .background(.blue, in: Capsule())
+                                                        .foregroundStyle(.white)
+                                                        .padding(4)
+                                                }
+                                            }
                                             .overlay(alignment: .topTrailing) {
                                                 Button(action: {
                                                     photos.removeAll { $0.id == photo.id }
@@ -98,6 +113,30 @@ struct EditMemoryView: View {
                                                         .foregroundStyle(.white, .black.opacity(0.6))
                                                 }
                                                 .padding(4)
+                                            }
+                                            .draggable(photo.id.uuidString) {
+                                                Image(uiImage: image)
+                                                    .resizable()
+                                                    .scaledToFill()
+                                                    .frame(width: 80, height: 80)
+                                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                            }
+                                            .dropDestination(for: String.self) { items, _ in
+                                                movePhoto(draggedID: items.first, before: photo.id)
+                                            }
+                                            .contextMenu {
+                                                if photos.first?.id != photo.id {
+                                                    Button {
+                                                        setAsCover(photo.id)
+                                                    } label: {
+                                                        Label("Set as Cover", systemImage: "star")
+                                                    }
+                                                }
+                                                Button(role: .destructive) {
+                                                    photos.removeAll { $0.id == photo.id }
+                                                } label: {
+                                                    Label("Remove", systemImage: "trash")
+                                                }
                                             }
                                     }
                                 }
@@ -155,6 +194,28 @@ struct EditMemoryView: View {
                 }
             }
         }
+    }
+
+    /// Moves the given photo to the front so it becomes the cover.
+    private func setAsCover(_ id: UUID) {
+        guard let index = photos.firstIndex(where: { $0.id == id }) else { return }
+        withAnimation {
+            let photo = photos.remove(at: index)
+            photos.insert(photo, at: 0)
+        }
+    }
+
+    /// Drag-reorder: drops the dragged photo immediately before the target.
+    private func movePhoto(draggedID: String?, before targetID: UUID) -> Bool {
+        guard let draggedID,
+              let from = photos.firstIndex(where: { $0.id.uuidString == draggedID }),
+              photos.contains(where: { $0.id == targetID }) else { return false }
+        withAnimation {
+            let photo = photos.remove(at: from)
+            let target = photos.firstIndex(where: { $0.id == targetID }) ?? photos.count
+            photos.insert(photo, at: target)
+        }
+        return true
     }
 
     private func saveChanges() {
