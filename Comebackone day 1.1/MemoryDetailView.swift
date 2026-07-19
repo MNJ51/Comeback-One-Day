@@ -13,6 +13,7 @@ struct MemoryDetailView: View {
 
     @State private var showingEdit = false
     @State private var showingDeleteConfirmation = false
+    @State private var showingShare = false
 
     private var memory: TravelMemory? {
         store.memory(withID: memoryID)
@@ -134,7 +135,9 @@ struct MemoryDetailView: View {
                         }
                     }
                     ToolbarItem(placement: .primaryAction) {
-                        ShareLink(item: shareText(for: memory)) {
+                        Button {
+                            showingShare = true
+                        } label: {
                             Image(systemName: "square.and.arrow.up")
                         }
                     }
@@ -158,6 +161,9 @@ struct MemoryDetailView: View {
                 .sheet(isPresented: $showingEdit) {
                     EditMemoryView(memory: memory)
                 }
+                .sheet(isPresented: $showingShare) {
+                    ShareSheet(items: shareItems(for: memory))
+                }
                 .task(id: memoryID) {
                     await fetchAddressIfNeeded()
                 }
@@ -177,6 +183,16 @@ struct MemoryDetailView: View {
         }
     }
 
+    /// Items handed to the system share sheet: the cover photo (if any) plus text.
+    private func shareItems(for memory: TravelMemory) -> [Any] {
+        var items: [Any] = []
+        if let image = PhotoStore.image(for: memory.coverPhotoFilename) {
+            items.append(image)
+        }
+        items.append(shareText(for: memory))
+        return items
+    }
+
     private func shareText(for memory: TravelMemory) -> String {
         var lines = [memory.name]
         if memory.rating > 0 {
@@ -189,6 +205,9 @@ struct MemoryDetailView: View {
             lines.append(memory.notes)
         }
         lines.append("https://maps.apple.com/?ll=\(memory.latitude),\(memory.longitude)&q=\(memory.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? memory.name)")
+        if let shareURL = memory.shareURL {
+            lines.append("Add to Come Back One Day: \(shareURL.absoluteString)")
+        }
         return lines.joined(separator: "\n")
     }
 
@@ -221,6 +240,17 @@ struct MemoryDetailView: View {
             UIApplication.shared.open(url)
         }
     }
+}
+
+/// Presents the system share sheet with arbitrary items (photo + text).
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 struct DirectionButton: View {

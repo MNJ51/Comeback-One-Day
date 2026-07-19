@@ -12,6 +12,7 @@ struct ContentView: View {
     @StateObject private var store = MemoryStore()
     @StateObject private var locationManager = LocationManager()
     @Environment(\.scenePhase) private var scenePhase
+    @State private var pendingImport: TravelMemory?
 
     var body: some View {
         TabView {
@@ -33,6 +34,23 @@ struct ContentView: View {
                     await store.syncNow()
                 }
             }
+        }
+        .onOpenURL { url in
+            if let imported = TravelMemory(shareURL: url) {
+                pendingImport = imported
+            }
+        }
+        .alert("Add this place?", isPresented: Binding(
+            get: { pendingImport != nil },
+            set: { if !$0 { pendingImport = nil } }
+        ), presenting: pendingImport) { place in
+            Button("Add") {
+                store.add(place)
+                pendingImport = nil
+            }
+            Button("Cancel", role: .cancel) { pendingImport = nil }
+        } message: { place in
+            Text("Add “\(place.name)” to your places?")
         }
     }
 }

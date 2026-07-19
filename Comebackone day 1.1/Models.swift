@@ -116,3 +116,54 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         try container.encodeIfPresent(dateVisited, forKey: .dateVisited)
     }
 }
+
+// MARK: - Sharing places as a deep link
+
+extension TravelMemory {
+    static let shareScheme = "comebackoneday"
+
+    /// A deep link another Come Back One Day user can open to import this place.
+    /// Photos are not included — links can't carry image data.
+    var shareURL: URL? {
+        var components = URLComponents()
+        components.scheme = Self.shareScheme
+        components.host = "add"
+        var items = [
+            URLQueryItem(name: "name", value: name),
+            URLQueryItem(name: "lat", value: String(latitude)),
+            URLQueryItem(name: "lon", value: String(longitude)),
+            URLQueryItem(name: "cat", value: category.rawValue),
+            URLQueryItem(name: "rating", value: String(rating))
+        ]
+        if let address { items.append(URLQueryItem(name: "addr", value: address)) }
+        if !notes.isEmpty { items.append(URLQueryItem(name: "notes", value: notes)) }
+        if let dateVisited {
+            items.append(URLQueryItem(name: "date", value: String(Int(dateVisited.timeIntervalSince1970))))
+        }
+        components.queryItems = items
+        return components.url
+    }
+
+    /// Builds a new place (fresh id, no photos) from a shared deep link.
+    init?(shareURL url: URL) {
+        guard url.scheme == Self.shareScheme,
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              components.host == "add" else { return nil }
+        let query = components.queryItems ?? []
+        func value(_ key: String) -> String? { query.first { $0.name == key }?.value }
+        guard let name = value("name"), !name.isEmpty,
+              let lat = value("lat").flatMap(Double.init),
+              let lon = value("lon").flatMap(Double.init) else { return nil }
+        self.init(
+            name: name,
+            latitude: lat,
+            longitude: lon,
+            category: Category(rawValue: value("cat") ?? "") ?? .location,
+            photoFilenames: [],
+            address: value("addr"),
+            rating: Int(value("rating") ?? "") ?? 0,
+            notes: value("notes") ?? "",
+            dateVisited: value("date").flatMap(Double.init).map { Date(timeIntervalSince1970: $0) }
+        )
+    }
+}

@@ -470,6 +470,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				CODE_SIGN_ENTITLEMENTS = "Comebackone day 1.1/Comebackone day 1.1.entitlements";
+				INFOPLIST_FILE = "Comebackone day 1.1/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Come Back One Day";
 				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of places you want to remember.";
@@ -508,6 +509,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				CODE_SIGN_ENTITLEMENTS = "Comebackone day 1.1/Comebackone day 1.1.entitlements";
+				INFOPLIST_FILE = "Comebackone day 1.1/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Come Back One Day";
 				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of places you want to remember.";
