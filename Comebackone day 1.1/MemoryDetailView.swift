@@ -110,6 +110,19 @@ struct MemoryDetailView: View {
                             }
                         }
                         .padding()
+
+                        Button(role: .destructive) {
+                            showingDeleteConfirmation = true
+                        } label: {
+                            Label("Delete Place", systemImage: "trash")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+                                .foregroundStyle(.red)
+                        }
+                        .padding(.horizontal)
+                        .padding(.bottom)
                     }
                     .padding()
                 }
