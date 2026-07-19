@@ -37,6 +37,9 @@ struct CameraView: UIViewControllerRepresentable {
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
             if let image = info[.originalImage] as? UIImage {
                 parent.image = image
+                // Also save a copy to the user's Photos library (prompts for
+                // add-only permission the first time; silently skips if denied).
+                UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
             }
             parent.dismiss()
         }
