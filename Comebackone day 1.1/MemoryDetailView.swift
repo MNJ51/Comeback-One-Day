@@ -63,6 +63,16 @@ struct MemoryDetailView: View {
                                 }
                             }
 
+                            if let websiteURL = memory.websiteURL {
+                                HStack(alignment: .top) {
+                                    Image(systemName: "globe")
+                                    Link(memory.website ?? websiteURL.absoluteString,
+                                         destination: websiteURL)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                }
+                            }
+
                             if let dateVisited = memory.dateVisited {
                                 HStack {
                                     Image(systemName: "calendar")
@@ -200,6 +210,9 @@ struct MemoryDetailView: View {
         }
         if let address = memory.address {
             lines.append(address)
+        }
+        if let websiteURL = memory.websiteURL {
+            lines.append(websiteURL.absoluteString)
         }
         if !memory.notes.isEmpty {
             lines.append(memory.notes)

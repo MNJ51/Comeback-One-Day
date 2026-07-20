@@ -40,12 +40,17 @@ struct QuickCameraView: View {
                         DatePicker("Date Visited", selection: $dateVisited, displayedComponents: .date)
                             .padding(.horizontal)
 
-                        Picker("Category", selection: $category) {
-                            ForEach(Category.allCases) { cat in
-                                Text(cat.rawValue).tag(cat)
+                        HStack {
+                            Text("Category")
+                            Spacer()
+                            Picker("Category", selection: $category) {
+                                ForEach(Category.allCases) { cat in
+                                    Label(cat.rawValue, systemImage: cat.icon).tag(cat)
+                                }
                             }
+                            .pickerStyle(.menu)
+                            .labelsHidden()
                         }
-                        .pickerStyle(.segmented)
                         .padding(.horizontal)
 
                         if !hasLocation {

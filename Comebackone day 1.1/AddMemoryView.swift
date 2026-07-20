@@ -52,6 +52,7 @@ struct AddMemoryView: View {
     @StateObject private var searchService = LocationSearchService()
 
     @State private var name = ""
+    @State private var website = ""
     @State private var category = Category.restaurant
     @State private var dateVisited = Date()
     @State private var rating = 0
@@ -77,14 +78,19 @@ struct AddMemoryView: View {
                 Section("Place Details") {
                     TextField("Name", text: $name)
 
+                    TextField("Website (optional)", text: $website)
+                        .keyboardType(.URL)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+
                     DatePicker("Date Visited", selection: $dateVisited, displayedComponents: .date)
 
                     Picker("Category", selection: $category) {
                         ForEach(Category.allCases) { cat in
-                            Text(cat.rawValue).tag(cat)
+                            Label(cat.rawValue, systemImage: cat.icon).tag(cat)
                         }
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
                 }
 
                 Section("Location") {
@@ -252,6 +258,7 @@ struct AddMemoryView: View {
             category: category,
             photoFilenames: filenames,
             address: selectedAddress,
+            website: website.trimmedNonEmpty,
             rating: rating,
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
             dateVisited: dateVisited

@@ -27,6 +27,7 @@ struct EditMemoryView: View {
     }
 
     @State private var name: String
+    @State private var website: String
     @State private var category: Category
     @State private var dateVisited: Date
     @State private var rating: Int
@@ -40,6 +41,7 @@ struct EditMemoryView: View {
     init(memory: TravelMemory) {
         self.memory = memory
         _name = State(initialValue: memory.name)
+        _website = State(initialValue: memory.website ?? "")
         _category = State(initialValue: memory.category)
         _dateVisited = State(initialValue: memory.dateVisited ?? Date())
         _rating = State(initialValue: memory.rating)
@@ -57,14 +59,19 @@ struct EditMemoryView: View {
                 Section("Place Details") {
                     TextField("Name", text: $name)
 
+                    TextField("Website (optional)", text: $website)
+                        .keyboardType(.URL)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+
                     DatePicker("Date Visited", selection: $dateVisited, displayedComponents: .date)
 
                     Picker("Category", selection: $category) {
                         ForEach(Category.allCases) { cat in
-                            Text(cat.rawValue).tag(cat)
+                            Label(cat.rawValue, systemImage: cat.icon).tag(cat)
                         }
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
                 }
 
                 Section("Rating & Notes") {
@@ -221,6 +228,7 @@ struct EditMemoryView: View {
     private func saveChanges() {
         var updated = memory
         updated.name = name.trimmingCharacters(in: .whitespaces)
+        updated.website = website.trimmedNonEmpty
         updated.category = category
         updated.dateVisited = dateVisited
         updated.rating = rating

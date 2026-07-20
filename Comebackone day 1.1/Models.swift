@@ -8,6 +8,7 @@ import CoreLocation
 
 enum Category: String, Codable, CaseIterable, Identifiable {
     case restaurant = "Restaurant"
+    case bar = "Bar/Pub"
     case hotel = "Hotel"
     case location = "Location"
     case foodMarket = "Food Market"
@@ -17,6 +18,7 @@ enum Category: String, Codable, CaseIterable, Identifiable {
     var color: Color {
         switch self {
         case .restaurant: return .red
+        case .bar: return .orange
         case .hotel: return .blue
         case .foodMarket: return .green
         case .location: return .purple
@@ -26,6 +28,7 @@ enum Category: String, Codable, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .restaurant: return "fork.knife"
+        case .bar: return "wineglass.fill"
         case .hotel: return "bed.double.fill"
         case .foodMarket: return "basket.fill"
         case .location: return "mappin"
@@ -46,13 +49,15 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     var category: Category
     var photoFilenames: [String]
     var address: String?
+    /// The business's website, as typed by the user (scheme optional).
+    var website: String?
     /// 0 means unrated, otherwise 1–5 stars.
     var rating: Int
     var notes: String
     let dateAdded: Date
     var dateVisited: Date?
 
-    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil) {
+    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, website: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil) {
         self.id = id
         self.name = name
         self.latitude = latitude
@@ -60,6 +65,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         self.category = category
         self.photoFilenames = photoFilenames
         self.address = address
+        self.website = website
         self.rating = rating
         self.notes = notes
         self.dateAdded = dateAdded
@@ -76,7 +82,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, rating, notes, dateAdded, dateVisited
+        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, website, rating, notes, dateAdded, dateVisited
     }
 
     init(from decoder: Decoder) throws {
@@ -95,6 +101,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
             photoFilenames = []
         }
         address = try container.decodeIfPresent(String.self, forKey: .address)
+        website = try container.decodeIfPresent(String.self, forKey: .website)
         rating = try container.decodeIfPresent(Int.self, forKey: .rating) ?? 0
         notes = try container.decodeIfPresent(String.self, forKey: .notes) ?? ""
         dateAdded = try container.decode(Date.self, forKey: .dateAdded)
@@ -110,6 +117,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         try container.encode(category, forKey: .category)
         try container.encode(photoFilenames, forKey: .photoFilenames)
         try container.encodeIfPresent(address, forKey: .address)
+        try container.encodeIfPresent(website, forKey: .website)
         try container.encode(rating, forKey: .rating)
         try container.encode(notes, forKey: .notes)
         try container.encode(dateAdded, forKey: .dateAdded)
@@ -117,9 +125,29 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     }
 }
 
+extension String {
+    /// Trimmed contents, or nil when the field was left blank.
+    var trimmedNonEmpty: String? {
+        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
 // MARK: - Sharing places as a deep link
 
 extension TravelMemory {
+    /// The website as an openable URL, adding https:// when the user omitted a scheme.
+    var websiteURL: URL? {
+        guard let website else { return nil }
+        let trimmed = website.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let lower = trimmed.lowercased()
+        let absolute = (lower.hasPrefix("http://") || lower.hasPrefix("https://"))
+            ? trimmed
+            : "https://" + trimmed
+        return URL(string: absolute)
+    }
+
     static let shareScheme = "comebackoneday"
 
     /// A deep link another Come Back One Day user can open to import this place.
@@ -136,6 +164,7 @@ extension TravelMemory {
             URLQueryItem(name: "rating", value: String(rating))
         ]
         if let address { items.append(URLQueryItem(name: "addr", value: address)) }
+        if let website, !website.isEmpty { items.append(URLQueryItem(name: "web", value: website)) }
         if !notes.isEmpty { items.append(URLQueryItem(name: "notes", value: notes)) }
         if let dateVisited {
             items.append(URLQueryItem(name: "date", value: String(Int(dateVisited.timeIntervalSince1970))))
@@ -161,6 +190,7 @@ extension TravelMemory {
             category: Category(rawValue: value("cat") ?? "") ?? .location,
             photoFilenames: [],
             address: value("addr"),
+            website: value("web"),
             rating: Int(value("rating") ?? "") ?? 0,
             notes: value("notes") ?? "",
             dateVisited: value("date").flatMap(Double.init).map { Date(timeIntervalSince1970: $0) }

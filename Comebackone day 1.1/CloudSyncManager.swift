@@ -181,6 +181,7 @@ final class CloudSyncManager {
         record["longitude"] = memory.longitude
         record["category"] = memory.category.rawValue
         record["address"] = memory.address
+        record["website"] = memory.website
         record["rating"] = memory.rating
         record["notes"] = memory.notes
         record["dateAdded"] = memory.dateAdded
@@ -219,6 +220,7 @@ final class CloudSyncManager {
             category: Category(rawValue: record["category"] as? String ?? "") ?? .location,
             photoFilenames: filenames,
             address: record["address"] as? String,
+            website: record["website"] as? String,
             rating: record["rating"] as? Int ?? 0,
             notes: record["notes"] as? String ?? "",
             dateAdded: record["dateAdded"] as? Date ?? Date(),
