@@ -234,8 +234,7 @@ struct MemoryDetailView: View {
     }
 
     private func openMaps(memory: TravelMemory, mode: String) {
-        let location = CLLocation(latitude: memory.latitude, longitude: memory.longitude)
-        let mapItem = MKMapItem(location: location, address: nil)
+        let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: memory.coordinate))
         mapItem.name = memory.name
 
         mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: mode])

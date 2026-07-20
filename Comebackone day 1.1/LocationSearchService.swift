@@ -41,17 +41,29 @@ class LocationSearchService: NSObject, ObservableObject {
               let item = response.mapItems.first else {
             return nil
         }
-        return (item.name ?? completion.title, item.location.coordinate, item.address?.fullAddress)
+        let placemark = item.placemark
+        return (item.name ?? completion.title, placemark.coordinate, Self.formattedAddress(from: placemark))
     }
 
     /// Looks up a human-readable address for a coordinate.
     static func address(for coordinate: CLLocationCoordinate2D) async -> String? {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        guard let request = MKReverseGeocodingRequest(location: location),
-              let items = try? await request.mapItems else {
+        guard let placemarks = try? await CLGeocoder().reverseGeocodeLocation(location),
+              let placemark = placemarks.first else {
             return nil
         }
-        return items.first?.address?.fullAddress
+        return formattedAddress(from: placemark)
+    }
+
+    /// Builds a single-line address from a placemark's components.
+    private static func formattedAddress(from placemark: CLPlacemark) -> String? {
+        let street = [placemark.subThoroughfare, placemark.thoroughfare]
+            .compactMap { $0 }
+            .joined(separator: " ")
+        let parts = [street, placemark.locality, placemark.administrativeArea, placemark.postalCode, placemark.country]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }
 }
 
