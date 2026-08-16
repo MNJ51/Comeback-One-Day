@@ -22,6 +22,7 @@
 		D28258A438F9DE9E55E6AAE8 /* PhotoStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A382945467C54D16E2A21D96 /* PhotoStore.swift */; };
 		43922C3E5937A7283EA2B3C8 /* QuickCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30E96BCA507F20FD1A31CFE1 /* QuickCameraView.swift */; };
 		CFE36DE46576CA10911A9C75 /* StarRatingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A52514A4A00C7613AFACBDD3 /* StarRatingView.swift */; };
+		7E7C7F5878DA5B6353D6B29A /* PhotoViewerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB8D8FFD6CCBFE3B1DA5207 /* PhotoViewerView.swift */; };
 		1BB98FFDA22F9FB6415C3CB2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 25C524F4B1F913431FD9DE83 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -61,6 +62,7 @@
 		A382945467C54D16E2A21D96 /* PhotoStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PhotoStore.swift"; sourceTree = "<group>"; };
 		30E96BCA507F20FD1A31CFE1 /* QuickCameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "QuickCameraView.swift"; sourceTree = "<group>"; };
 		A52514A4A00C7613AFACBDD3 /* StarRatingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StarRatingView.swift"; sourceTree = "<group>"; };
+		2FB8D8FFD6CCBFE3B1DA5207 /* PhotoViewerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PhotoViewerView.swift"; sourceTree = "<group>"; };
 		25C524F4B1F913431FD9DE83 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		284AD1DCDBAC27CBBE1CC46A /* Comebackone day 1.2.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Comebackone day 1.2.entitlements"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -84,6 +86,7 @@
 				A382945467C54D16E2A21D96 /* PhotoStore.swift */,
 				30E96BCA507F20FD1A31CFE1 /* QuickCameraView.swift */,
 				A52514A4A00C7613AFACBDD3 /* StarRatingView.swift */,
+				2FB8D8FFD6CCBFE3B1DA5207 /* PhotoViewerView.swift */,
 				25C524F4B1F913431FD9DE83 /* Assets.xcassets */,
 				284AD1DCDBAC27CBBE1CC46A /* Comebackone day 1.2.entitlements */,
 			);
@@ -304,6 +307,7 @@
 				D28258A438F9DE9E55E6AAE8 /* PhotoStore.swift in Sources */,
 				43922C3E5937A7283EA2B3C8 /* QuickCameraView.swift in Sources */,
 				CFE36DE46576CA10911A9C75 /* StarRatingView.swift in Sources */,
+				7E7C7F5878DA5B6353D6B29A /* PhotoViewerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

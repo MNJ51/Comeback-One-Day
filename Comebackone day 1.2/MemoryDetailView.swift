@@ -14,6 +14,8 @@ struct MemoryDetailView: View {
     @State private var showingEdit = false
     @State private var showingDeleteConfirmation = false
     @State private var showingShare = false
+    @State private var showingPhotoViewer = false
+    @State private var photoViewerStartIndex = 0
 
     private var memory: TravelMemory? {
         store.memory(withID: memoryID)
@@ -26,13 +28,18 @@ struct MemoryDetailView: View {
                     VStack(spacing: 20) {
                         if !memory.photoFilenames.isEmpty {
                             TabView {
-                                ForEach(memory.photoFilenames, id: \.self) { filename in
+                                ForEach(Array(memory.photoFilenames.enumerated()), id: \.offset) { index, filename in
                                     if let uiImage = PhotoStore.thumbnail(for: filename, maxDimension: 400) {
                                         Image(uiImage: uiImage)
                                             .resizable()
                                             .scaledToFill()
                                             .frame(maxWidth: .infinity)
                                             .clipped()
+                                            .contentShape(Rectangle())
+                                            .onTapGesture {
+                                                photoViewerStartIndex = index
+                                                showingPhotoViewer = true
+                                            }
                                     }
                                 }
                             }
@@ -173,6 +180,9 @@ struct MemoryDetailView: View {
                 }
                 .sheet(isPresented: $showingShare) {
                     ShareSheet(items: shareItems(for: memory))
+                }
+                .fullScreenCover(isPresented: $showingPhotoViewer) {
+                    PhotoViewerView(filenames: memory.photoFilenames, currentIndex: photoViewerStartIndex)
                 }
                 .task(id: memoryID) {
                     await fetchAddressIfNeeded()
