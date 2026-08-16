@@ -111,4 +111,29 @@ struct TravelMemoryCodingTests {
         let decoded = try JSONDecoder().decode([TravelMemory].self, from: data)
         #expect(decoded[0].isReceivedFromShare == true)
     }
+
+    @Test func sharedDeepLinkCarriesSenderName() throws {
+        let url = try #require(URL(string: "comebackoneday://add?name=Omilos&lat=-27.4705&lon=153.0260&cat=Restaurant&rating=5&from=Mike%27s%20iPhone"))
+        let imported = try #require(TravelMemory(shareURL: url))
+        #expect(imported.senderName == "Mike's iPhone")
+
+        let data = try JSONEncoder().encode([imported])
+        let decoded = try JSONDecoder().decode([TravelMemory].self, from: data)
+        #expect(decoded[0].senderName == "Mike's iPhone")
+    }
+
+    @Test func missingSenderNameDecodesToNil() throws {
+        let json = """
+        [{
+            "id": "08D8A3C4-A65B-4119-876A-C7789A460D4F",
+            "name": "Old Place",
+            "latitude": -27.5,
+            "longitude": 153.0,
+            "category": "Restaurant",
+            "dateAdded": 700000000.0
+        }]
+        """
+        let memories = try JSONDecoder().decode([TravelMemory].self, from: Data(json.utf8))
+        #expect(memories[0].senderName == nil)
+    }
 }

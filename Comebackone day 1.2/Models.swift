@@ -5,6 +5,7 @@
 
 import SwiftUI
 import CoreLocation
+import UIKit
 
 enum Category: String, Codable, CaseIterable, Identifiable {
     case restaurant = "Restaurant"
@@ -58,8 +59,10 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     var dateVisited: Date?
     /// True when this place was added by importing someone else's shared deep link.
     var isReceivedFromShare: Bool
+    /// The sender's device name, captured when this place was imported from a shared link.
+    var senderName: String?
 
-    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, website: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil, isReceivedFromShare: Bool = false) {
+    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, website: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil, isReceivedFromShare: Bool = false, senderName: String? = nil) {
         self.id = id
         self.name = name
         self.latitude = latitude
@@ -73,6 +76,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         self.dateAdded = dateAdded
         self.dateVisited = dateVisited
         self.isReceivedFromShare = isReceivedFromShare
+        self.senderName = senderName
     }
 
     var coordinate: CLLocationCoordinate2D {
@@ -85,7 +89,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, website, rating, notes, dateAdded, dateVisited, isReceivedFromShare
+        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, website, rating, notes, dateAdded, dateVisited, isReceivedFromShare, senderName
     }
 
     init(from decoder: Decoder) throws {
@@ -110,6 +114,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         dateAdded = try container.decode(Date.self, forKey: .dateAdded)
         dateVisited = try container.decodeIfPresent(Date.self, forKey: .dateVisited)
         isReceivedFromShare = try container.decodeIfPresent(Bool.self, forKey: .isReceivedFromShare) ?? false
+        senderName = try container.decodeIfPresent(String.self, forKey: .senderName)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -127,6 +132,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         try container.encode(dateAdded, forKey: .dateAdded)
         try container.encodeIfPresent(dateVisited, forKey: .dateVisited)
         try container.encode(isReceivedFromShare, forKey: .isReceivedFromShare)
+        try container.encodeIfPresent(senderName, forKey: .senderName)
     }
 }
 
@@ -174,6 +180,11 @@ extension TravelMemory {
         if let dateVisited {
             items.append(URLQueryItem(name: "date", value: String(Int(dateVisited.timeIntervalSince1970))))
         }
+        // Identifies the sender to whoever imports this link. There's no account
+        // system, so the device's own name is the closest thing to "who sent this" —
+        // most people's devices are named after themselves (e.g. "Mike's iPhone").
+        let senderName = UIDevice.current.name.trimmedNonEmpty
+        if let senderName { items.append(URLQueryItem(name: "from", value: senderName)) }
         components.queryItems = items
         return components.url
     }
@@ -199,7 +210,8 @@ extension TravelMemory {
             rating: Int(value("rating") ?? "") ?? 0,
             notes: value("notes") ?? "",
             dateVisited: value("date").flatMap(Double.init).map { Date(timeIntervalSince1970: $0) },
-            isReceivedFromShare: true
+            isReceivedFromShare: true,
+            senderName: value("from")
         )
     }
 }

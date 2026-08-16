@@ -62,6 +62,15 @@ struct MemoryDetailView: View {
                                     .foregroundStyle(.secondary)
                             }
 
+                            if memory.isReceivedFromShare, let senderName = memory.senderName {
+                                HStack {
+                                    Image(systemName: "person.crop.circle.fill")
+                                        .foregroundStyle(.yellow)
+                                    Text("Shared by \(senderName)")
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
                             if let address = memory.address {
                                 HStack(alignment: .top) {
                                     Image(systemName: "mappin.and.ellipse")
