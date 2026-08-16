@@ -22,7 +22,9 @@ struct EditMemoryView: View {
             if let data {
                 return UIImage(data: data)
             }
-            return PhotoStore.thumbnail(for: filename, maxDimension: 160)
+            // Fall back to the full-size file if thumbnail generation fails
+            // (e.g. the ImageIO decode path chokes on a particular photo).
+            return PhotoStore.thumbnail(for: filename, maxDimension: 160) ?? PhotoStore.image(for: filename)
         }
     }
 
@@ -100,39 +102,50 @@ struct EditMemoryView: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: photoSpacing) {
                                 ForEach(photos) { photo in
-                                    if let image = photo.image {
-                                        Image(uiImage: image)
-                                            .resizable()
-                                            .scaledToFill()
-                                            .frame(width: photoSize, height: photoSize)
-                                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                                            .overlay(alignment: .bottomLeading) {
-                                                if photos.first?.id == photo.id {
-                                                    Text("Cover")
-                                                        .font(.caption2.weight(.semibold))
-                                                        .padding(.horizontal, 6)
-                                                        .padding(.vertical, 2)
-                                                        .background(.blue, in: Capsule())
-                                                        .foregroundStyle(.white)
-                                                        .padding(4)
-                                                }
+                                    Group {
+                                        if let image = photo.image {
+                                            Image(uiImage: image)
+                                                .resizable()
+                                                .scaledToFill()
+                                        } else {
+                                            // Still show a slot for a photo that failed to load
+                                            // (e.g. not finished downloading from iCloud yet)
+                                            // rather than silently dropping it from the list.
+                                            ZStack {
+                                                Color.secondary.opacity(0.15)
+                                                Image(systemName: "photo.badge.exclamationmark")
+                                                    .foregroundStyle(.secondary)
                                             }
-                                            .overlay(alignment: .topTrailing) {
-                                                Button(action: {
-                                                    photos.removeAll { $0.id == photo.id }
-                                                }) {
-                                                    Image(systemName: "xmark.circle.fill")
-                                                        .font(.title3)
-                                                        .foregroundStyle(.white, .black.opacity(0.6))
-                                                }
-                                                .padding(4)
-                                            }
-                                            .scaleEffect(draggingPhotoID == photo.id ? 1.08 : 1)
-                                            .shadow(radius: draggingPhotoID == photo.id ? 6 : 0)
-                                            .zIndex(draggingPhotoID == photo.id ? 1 : 0)
-                                            .offset(x: draggingPhotoID == photo.id ? dragTranslation.width : 0)
-                                            .simultaneousGesture(reorderGesture(for: photo))
+                                        }
                                     }
+                                    .frame(width: photoSize, height: photoSize)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .overlay(alignment: .bottomLeading) {
+                                        if photos.first?.id == photo.id {
+                                            Text("Cover")
+                                                .font(.caption2.weight(.semibold))
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(.blue, in: Capsule())
+                                                .foregroundStyle(.white)
+                                                .padding(4)
+                                        }
+                                    }
+                                    .overlay(alignment: .topTrailing) {
+                                        Button(action: {
+                                            photos.removeAll { $0.id == photo.id }
+                                        }) {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .font(.title3)
+                                                .foregroundStyle(.white, .black.opacity(0.6))
+                                        }
+                                        .padding(4)
+                                    }
+                                    .scaleEffect(draggingPhotoID == photo.id ? 1.08 : 1)
+                                    .shadow(radius: draggingPhotoID == photo.id ? 6 : 0)
+                                    .zIndex(draggingPhotoID == photo.id ? 1 : 0)
+                                    .offset(x: draggingPhotoID == photo.id ? dragTranslation.width : 0)
+                                    .simultaneousGesture(reorderGesture(for: photo))
                                 }
                             }
                             .padding(.vertical, 4)
