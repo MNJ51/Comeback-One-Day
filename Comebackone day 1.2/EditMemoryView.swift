@@ -131,7 +131,7 @@ struct EditMemoryView: View {
                                             .shadow(radius: draggingPhotoID == photo.id ? 6 : 0)
                                             .zIndex(draggingPhotoID == photo.id ? 1 : 0)
                                             .offset(x: draggingPhotoID == photo.id ? dragTranslation.width : 0)
-                                            .gesture(reorderGesture(for: photo))
+                                            .simultaneousGesture(reorderGesture(for: photo))
                                     }
                                 }
                             }
