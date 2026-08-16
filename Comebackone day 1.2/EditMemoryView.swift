@@ -132,20 +132,6 @@ struct EditMemoryView: View {
                                             .zIndex(draggingPhotoID == photo.id ? 1 : 0)
                                             .offset(x: draggingPhotoID == photo.id ? dragTranslation.width : 0)
                                             .gesture(reorderGesture(for: photo))
-                                            .contextMenu {
-                                                if photos.first?.id != photo.id {
-                                                    Button {
-                                                        setAsCover(photo.id)
-                                                    } label: {
-                                                        Label("Set as Cover", systemImage: "star")
-                                                    }
-                                                }
-                                                Button(role: .destructive) {
-                                                    photos.removeAll { $0.id == photo.id }
-                                                } label: {
-                                                    Label("Remove", systemImage: "trash")
-                                                }
-                                            }
                                     }
                                 }
                             }
@@ -202,15 +188,6 @@ struct EditMemoryView: View {
                     capturedImage = nil
                 }
             }
-        }
-    }
-
-    /// Moves the given photo to the front so it becomes the cover.
-    private func setAsCover(_ id: UUID) {
-        guard let index = photos.firstIndex(where: { $0.id == id }) else { return }
-        withAnimation {
-            let photo = photos.remove(at: index)
-            photos.insert(photo, at: 0)
         }
     }
 
