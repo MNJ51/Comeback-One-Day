@@ -38,6 +38,12 @@ struct EditMemoryView: View {
     @State private var showingCamera = false
     @State private var capturedImage: UIImage?
 
+    @State private var draggingPhotoID: UUID?
+    @State private var dragTranslation: CGSize = .zero
+
+    private let photoSize: CGFloat = 80
+    private let photoSpacing: CGFloat = 10
+
     init(memory: TravelMemory) {
         self.memory = memory
         _name = State(initialValue: memory.name)
@@ -87,18 +93,18 @@ struct EditMemoryView: View {
 
                 Section("Photos") {
                     if !photos.isEmpty {
-                        Text("Drag to reorder. The first photo is the cover.")
+                        Text("Touch and hold a photo, then drag to reorder. The first photo is the cover.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 10) {
+                            HStack(spacing: photoSpacing) {
                                 ForEach(photos) { photo in
                                     if let image = photo.image {
                                         Image(uiImage: image)
                                             .resizable()
                                             .scaledToFill()
-                                            .frame(width: 80, height: 80)
+                                            .frame(width: photoSize, height: photoSize)
                                             .clipShape(RoundedRectangle(cornerRadius: 10))
                                             .overlay(alignment: .bottomLeading) {
                                                 if photos.first?.id == photo.id {
@@ -121,16 +127,11 @@ struct EditMemoryView: View {
                                                 }
                                                 .padding(4)
                                             }
-                                            .draggable(photo.id.uuidString) {
-                                                Image(uiImage: image)
-                                                    .resizable()
-                                                    .scaledToFill()
-                                                    .frame(width: 80, height: 80)
-                                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                                            }
-                                            .dropDestination(for: String.self) { items, _ in
-                                                movePhoto(draggedID: items.first, before: photo.id)
-                                            }
+                                            .scaleEffect(draggingPhotoID == photo.id ? 1.08 : 1)
+                                            .shadow(radius: draggingPhotoID == photo.id ? 6 : 0)
+                                            .zIndex(draggingPhotoID == photo.id ? 1 : 0)
+                                            .offset(x: draggingPhotoID == photo.id ? dragTranslation.width : 0)
+                                            .gesture(reorderGesture(for: photo))
                                             .contextMenu {
                                                 if photos.first?.id != photo.id {
                                                     Button {
@@ -150,6 +151,7 @@ struct EditMemoryView: View {
                             }
                             .padding(.vertical, 4)
                         }
+                        .scrollDisabled(draggingPhotoID != nil)
                     }
 
                     PhotosPicker(selection: $pickerItems, maxSelectionCount: 10, matching: .images) {
@@ -212,17 +214,44 @@ struct EditMemoryView: View {
         }
     }
 
-    /// Drag-reorder: drops the dragged photo immediately before the target.
-    private func movePhoto(draggedID: String?, before targetID: UUID) -> Bool {
-        guard let draggedID,
-              let from = photos.firstIndex(where: { $0.id.uuidString == draggedID }),
-              photos.contains(where: { $0.id == targetID }) else { return false }
-        withAnimation {
-            let photo = photos.remove(at: from)
-            let target = photos.firstIndex(where: { $0.id == targetID }) ?? photos.count
-            photos.insert(photo, at: target)
+    /// A touch-and-hold-then-drag gesture that reorders `photos` live as the finger moves,
+    /// so it doesn't fight the horizontal ScrollView's own pan gesture for a quick swipe.
+    private func reorderGesture(for photo: EditablePhoto) -> some Gesture {
+        LongPressGesture(minimumDuration: 0.25)
+            .sequenced(before: DragGesture(minimumDistance: 0))
+            .onChanged { value in
+                switch value {
+                case .second(true, let drag):
+                    handleDragChange(photo: photo, translation: drag?.translation ?? .zero)
+                default:
+                    break
+                }
+            }
+            .onEnded { _ in
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    draggingPhotoID = nil
+                    dragTranslation = .zero
+                }
+            }
+    }
+
+    private func handleDragChange(photo: EditablePhoto, translation: CGSize) {
+        draggingPhotoID = photo.id
+        dragTranslation = translation
+
+        guard let currentIndex = photos.firstIndex(where: { $0.id == photo.id }) else { return }
+        let stride = photoSize + photoSpacing
+        let slotShift = Int((translation.width / stride).rounded())
+        guard slotShift != 0 else { return }
+        let targetIndex = min(max(currentIndex + slotShift, 0), photos.count - 1)
+        guard targetIndex != currentIndex else { return }
+
+        withAnimation(.easeInOut(duration: 0.2)) {
+            let moved = photos.remove(at: currentIndex)
+            photos.insert(moved, at: targetIndex)
         }
-        return true
+        // The item's "home" slot just changed; keep only the leftover fractional drag.
+        dragTranslation.width -= CGFloat(targetIndex - currentIndex) * stride
     }
 
     private func saveChanges() {
