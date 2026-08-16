@@ -56,8 +56,10 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     var notes: String
     let dateAdded: Date
     var dateVisited: Date?
+    /// True when this place was added by importing someone else's shared deep link.
+    var isReceivedFromShare: Bool
 
-    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, website: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil) {
+    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, website: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil, isReceivedFromShare: Bool = false) {
         self.id = id
         self.name = name
         self.latitude = latitude
@@ -70,6 +72,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         self.notes = notes
         self.dateAdded = dateAdded
         self.dateVisited = dateVisited
+        self.isReceivedFromShare = isReceivedFromShare
     }
 
     var coordinate: CLLocationCoordinate2D {
@@ -82,7 +85,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, website, rating, notes, dateAdded, dateVisited
+        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, website, rating, notes, dateAdded, dateVisited, isReceivedFromShare
     }
 
     init(from decoder: Decoder) throws {
@@ -106,6 +109,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         notes = try container.decodeIfPresent(String.self, forKey: .notes) ?? ""
         dateAdded = try container.decode(Date.self, forKey: .dateAdded)
         dateVisited = try container.decodeIfPresent(Date.self, forKey: .dateVisited)
+        isReceivedFromShare = try container.decodeIfPresent(Bool.self, forKey: .isReceivedFromShare) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -122,6 +126,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         try container.encode(notes, forKey: .notes)
         try container.encode(dateAdded, forKey: .dateAdded)
         try container.encodeIfPresent(dateVisited, forKey: .dateVisited)
+        try container.encode(isReceivedFromShare, forKey: .isReceivedFromShare)
     }
 }
 
@@ -193,7 +198,8 @@ extension TravelMemory {
             website: value("web"),
             rating: Int(value("rating") ?? "") ?? 0,
             notes: value("notes") ?? "",
-            dateVisited: value("date").flatMap(Double.init).map { Date(timeIntervalSince1970: $0) }
+            dateVisited: value("date").flatMap(Double.init).map { Date(timeIntervalSince1970: $0) },
+            isReceivedFromShare: true
         )
     }
 }

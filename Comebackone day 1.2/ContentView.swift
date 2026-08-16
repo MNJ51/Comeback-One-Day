@@ -176,18 +176,29 @@ struct MemoryPin: View {
     let memory: TravelMemory
 
     var body: some View {
-        if let thumbnail = PhotoStore.thumbnail(for: memory.coverPhotoFilename, maxDimension: 40) {
-            Image(uiImage: thumbnail)
-                .resizable()
-                .scaledToFill()
-                .frame(width: 40, height: 40)
-                .clipShape(Circle())
-                .overlay(Circle().stroke(memory.category.color, lineWidth: 3))
-                .shadow(radius: 3)
-        } else {
-            Image(systemName: "mappin.circle.fill")
-                .foregroundStyle(memory.category.color)
-                .font(.title2)
+        Group {
+            if let thumbnail = PhotoStore.thumbnail(for: memory.coverPhotoFilename, maxDimension: 40) {
+                Image(uiImage: thumbnail)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(memory.category.color, lineWidth: 3))
+                    .shadow(radius: 3)
+            } else {
+                Image(systemName: "mappin.circle.fill")
+                    .foregroundStyle(memory.category.color)
+                    .font(.title2)
+            }
+        }
+        // A second ring around the category-color one, marking a place someone
+        // else shared with you rather than one you added yourself.
+        .overlay {
+            if memory.isReceivedFromShare {
+                Circle()
+                    .stroke(Color.yellow, lineWidth: 3)
+                    .padding(-5)
+            }
         }
     }
 }

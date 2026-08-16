@@ -188,6 +188,7 @@ final class CloudSyncManager {
         record["dateVisited"] = memory.dateVisited
         record["photoFilenames"] = memory.photoFilenames
         record["photos"] = memory.photoFilenames.map { CKAsset(fileURL: PhotoStore.url(for: $0)) }
+        record["isReceivedFromShare"] = memory.isReceivedFromShare ? 1 : 0
         return record
     }
 
@@ -224,7 +225,8 @@ final class CloudSyncManager {
             rating: record["rating"] as? Int ?? 0,
             notes: record["notes"] as? String ?? "",
             dateAdded: record["dateAdded"] as? Date ?? Date(),
-            dateVisited: record["dateVisited"] as? Date
+            dateVisited: record["dateVisited"] as? Date,
+            isReceivedFromShare: (record["isReceivedFromShare"] as? Int ?? 0) != 0
         )
         store?.applyRemoteSave(memory)
     }

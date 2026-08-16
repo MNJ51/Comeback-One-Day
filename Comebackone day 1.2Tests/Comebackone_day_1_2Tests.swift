@@ -79,4 +79,36 @@ struct TravelMemoryCodingTests {
         #expect(memories[0].photoFilenames.isEmpty)
         #expect(memories[0].coverPhotoFilename == nil)
     }
+
+    @Test func missingIsReceivedFromShareDefaultsToFalse() throws {
+        let json = """
+        [{
+            "id": "08D8A3C4-A65B-4119-876A-C7789A460D4F",
+            "name": "Old Place",
+            "latitude": -27.5,
+            "longitude": 153.0,
+            "category": "Restaurant",
+            "dateAdded": 700000000.0
+        }]
+        """
+        let memories = try JSONDecoder().decode([TravelMemory].self, from: Data(json.utf8))
+        #expect(memories[0].isReceivedFromShare == false)
+    }
+
+    @Test func sharedDeepLinkImportIsMarkedReceivedFromShare() throws {
+        let original = TravelMemory(
+            name: "Omilos",
+            latitude: -27.4705,
+            longitude: 153.0260,
+            category: .restaurant,
+            rating: 5
+        )
+        let url = try #require(original.shareURL)
+        let imported = try #require(TravelMemory(shareURL: url))
+        #expect(imported.isReceivedFromShare == true)
+
+        let data = try JSONEncoder().encode([imported])
+        let decoded = try JSONDecoder().decode([TravelMemory].self, from: data)
+        #expect(decoded[0].isReceivedFromShare == true)
+    }
 }
