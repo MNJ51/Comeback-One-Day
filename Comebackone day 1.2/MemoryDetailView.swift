@@ -1,6 +1,6 @@
 //
 //  MemoryDetailView.swift
-//  Comebackone day 1.1
+//  Comebackone day 1.2
 //
 
 import SwiftUI

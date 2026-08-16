@@ -1,13 +1,13 @@
 //
-//  Comebackone_day_1_1Tests.swift
-//  Comebackone day 1.1Tests
+//  Comebackone_day_1_2Tests.swift
+//  Comebackone day 1.2Tests
 //
 //  Created by Michael Jee on 5/1/2026.
 //
 
 import Foundation
 import Testing
-@testable import Comebackone_day_1_1
+@testable import Comebackone_day_1_2
 
 @MainActor
 struct TravelMemoryCodingTests {

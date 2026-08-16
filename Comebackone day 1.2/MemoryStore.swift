@@ -1,6 +1,6 @@
 //
 //  MemoryStore.swift
-//  Comebackone day 1.1
+//  Comebackone day 1.2
 //
 //  Owns the memory list and persists it as JSON in the Documents directory.
 //  Migrates legacy data that older builds kept (photos included) in UserDefaults.

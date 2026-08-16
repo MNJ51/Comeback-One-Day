@@ -1,13 +1,13 @@
 //
-//  Comebackone_day_1_1UITests.swift
-//  Comebackone day 1.1UITests
+//  Comebackone_day_1_2UITests.swift
+//  Comebackone day 1.2UITests
 //
 //  Created by Michael Jee on 5/1/2026.
 //
 
 import XCTest
 
-final class Comebackone_day_1_1UITests: XCTestCase {
+final class Comebackone_day_1_2UITests: XCTestCase {
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.

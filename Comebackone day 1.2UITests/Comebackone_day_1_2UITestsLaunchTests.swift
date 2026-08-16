@@ -1,13 +1,13 @@
 //
-//  Comebackone_day_1_1UITestsLaunchTests.swift
-//  Comebackone day 1.1UITests
+//  Comebackone_day_1_2UITestsLaunchTests.swift
+//  Comebackone day 1.2UITests
 //
 //  Created by Michael Jee on 5/1/2026.
 //
 
 import XCTest
 
-final class Comebackone_day_1_1UITestsLaunchTests: XCTestCase {
+final class Comebackone_day_1_2UITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

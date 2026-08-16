@@ -1,6 +1,6 @@
 //
 //  LocationSearchService.swift
-//  Comebackone day 1.1
+//  Comebackone day 1.2
 //
 //  Wraps MKLocalSearchCompleter so the add-memory form can find places by name
 //  instead of asking the user to type raw coordinates.

@@ -1,6 +1,6 @@
 //
 //  PhotoStore.swift
-//  Comebackone day 1.1
+//  Comebackone day 1.2
 //
 //  Photos live as JPEG files in Documents/Photos; memories store only the filename.
 //

@@ -1,6 +1,6 @@
 //
 //  CloudSyncManager.swift
-//  Comebackone day 1.1
+//  Comebackone day 1.2
 //
 //  Syncs memories to the user's private CloudKit database via CKSyncEngine.
 //  Each memory is one record in a custom zone; photos travel as CKAssets.

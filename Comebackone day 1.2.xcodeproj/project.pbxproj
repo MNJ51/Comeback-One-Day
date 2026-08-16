@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		2CA4614C35662D189660FEAD /* Comebackone_day_1_1App.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC28F3C5BBF45DB055104141 /* Comebackone_day_1_1App.swift */; };
+		2CA4614C35662D189660FEAD /* Comebackone_day_1_2App.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC28F3C5BBF45DB055104141 /* Comebackone_day_1_2App.swift */; };
 		A5E47B63B2EA0718BC05D37D /* AddMemoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6D1949ADAE89F7BE996D112 /* AddMemoryView.swift */; };
 		246A61501A2A1272B832D79B /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7025F4F007D8D687C830EC64 /* CameraView.swift */; };
 		8044A83DFD2F23A8ADEFCEAC /* CloudSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F52BDDC1FE8FA0766256F101 /* CloudSyncManager.swift */; };
@@ -31,22 +31,22 @@
 			containerPortal = 278E7BEC2F0B9E32002A768F /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 278E7BF32F0B9E32002A768F;
-			remoteInfo = "Comebackone day 1.1";
+			remoteInfo = "Comebackone day 1.2";
 		};
 		278E7C0C2F0B9E34002A768F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 278E7BEC2F0B9E32002A768F /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 278E7BF32F0B9E32002A768F;
-			remoteInfo = "Comebackone day 1.1";
+			remoteInfo = "Comebackone day 1.2";
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		278E7BF42F0B9E32002A768F /* Comebackone day 1.1.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Comebackone day 1.1.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		278E7C012F0B9E34002A768F /* Comebackone day 1.1Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Comebackone day 1.1Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		278E7C0B2F0B9E34002A768F /* Comebackone day 1.1UITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Comebackone day 1.1UITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		BC28F3C5BBF45DB055104141 /* Comebackone_day_1_1App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Comebackone_day_1_1App.swift"; sourceTree = "<group>"; };
+		278E7BF42F0B9E32002A768F /* Comebackone day 1.2.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Comebackone day 1.2.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		278E7C012F0B9E34002A768F /* Comebackone day 1.2Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Comebackone day 1.2Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		278E7C0B2F0B9E34002A768F /* Comebackone day 1.2UITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Comebackone day 1.2UITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BC28F3C5BBF45DB055104141 /* Comebackone_day_1_2App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Comebackone_day_1_2App.swift"; sourceTree = "<group>"; };
 		B6D1949ADAE89F7BE996D112 /* AddMemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AddMemoryView.swift"; sourceTree = "<group>"; };
 		7025F4F007D8D687C830EC64 /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CameraView.swift"; sourceTree = "<group>"; };
 		F52BDDC1FE8FA0766256F101 /* CloudSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CloudSyncManager.swift"; sourceTree = "<group>"; };
@@ -62,14 +62,14 @@
 		30E96BCA507F20FD1A31CFE1 /* QuickCameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "QuickCameraView.swift"; sourceTree = "<group>"; };
 		A52514A4A00C7613AFACBDD3 /* StarRatingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StarRatingView.swift"; sourceTree = "<group>"; };
 		25C524F4B1F913431FD9DE83 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		284AD1DCDBAC27CBBE1CC46A /* Comebackone day 1.1.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Comebackone day 1.1.entitlements"; sourceTree = "<group>"; };
+		284AD1DCDBAC27CBBE1CC46A /* Comebackone day 1.2.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Comebackone day 1.2.entitlements"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		278E7BF62F0B9E32002A768F /* Comebackone day 1.1 */ = {
+		278E7BF62F0B9E32002A768F /* Comebackone day 1.2 */ = {
 			isa = PBXGroup;
 			children = (
-				BC28F3C5BBF45DB055104141 /* Comebackone_day_1_1App.swift */,
+				BC28F3C5BBF45DB055104141 /* Comebackone_day_1_2App.swift */,
 				B6D1949ADAE89F7BE996D112 /* AddMemoryView.swift */,
 				7025F4F007D8D687C830EC64 /* CameraView.swift */,
 				F52BDDC1FE8FA0766256F101 /* CloudSyncManager.swift */,
@@ -85,19 +85,19 @@
 				30E96BCA507F20FD1A31CFE1 /* QuickCameraView.swift */,
 				A52514A4A00C7613AFACBDD3 /* StarRatingView.swift */,
 				25C524F4B1F913431FD9DE83 /* Assets.xcassets */,
-				284AD1DCDBAC27CBBE1CC46A /* Comebackone day 1.1.entitlements */,
+				284AD1DCDBAC27CBBE1CC46A /* Comebackone day 1.2.entitlements */,
 			);
-			path = "Comebackone day 1.1";
+			path = "Comebackone day 1.2";
 			sourceTree = "<group>";
 		};
-		278E7C042F0B9E34002A768F /* Comebackone day 1.1Tests */ = {
+		278E7C042F0B9E34002A768F /* Comebackone day 1.2Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Comebackone day 1.1Tests";
+			path = "Comebackone day 1.2Tests";
 			sourceTree = "<group>";
 		};
-		278E7C0E2F0B9E34002A768F /* Comebackone day 1.1UITests */ = {
+		278E7C0E2F0B9E34002A768F /* Comebackone day 1.2UITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Comebackone day 1.1UITests";
+			path = "Comebackone day 1.2UITests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -130,9 +130,9 @@
 		278E7BEB2F0B9E32002A768F = {
 			isa = PBXGroup;
 			children = (
-				278E7BF62F0B9E32002A768F /* Comebackone day 1.1 */,
-				278E7C042F0B9E34002A768F /* Comebackone day 1.1Tests */,
-				278E7C0E2F0B9E34002A768F /* Comebackone day 1.1UITests */,
+				278E7BF62F0B9E32002A768F /* Comebackone day 1.2 */,
+				278E7C042F0B9E34002A768F /* Comebackone day 1.2Tests */,
+				278E7C0E2F0B9E34002A768F /* Comebackone day 1.2UITests */,
 				278E7BF52F0B9E32002A768F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -140,9 +140,9 @@
 		278E7BF52F0B9E32002A768F /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				278E7BF42F0B9E32002A768F /* Comebackone day 1.1.app */,
-				278E7C012F0B9E34002A768F /* Comebackone day 1.1Tests.xctest */,
-				278E7C0B2F0B9E34002A768F /* Comebackone day 1.1UITests.xctest */,
+				278E7BF42F0B9E32002A768F /* Comebackone day 1.2.app */,
+				278E7C012F0B9E34002A768F /* Comebackone day 1.2Tests.xctest */,
+				278E7C0B2F0B9E34002A768F /* Comebackone day 1.2UITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -150,9 +150,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		278E7BF32F0B9E32002A768F /* Comebackone day 1.1 */ = {
+		278E7BF32F0B9E32002A768F /* Comebackone day 1.2 */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 278E7C152F0B9E34002A768F /* Build configuration list for PBXNativeTarget "Comebackone day 1.1" */;
+			buildConfigurationList = 278E7C152F0B9E34002A768F /* Build configuration list for PBXNativeTarget "Comebackone day 1.2" */;
 			buildPhases = (
 				278E7BF02F0B9E32002A768F /* Sources */,
 				278E7BF12F0B9E32002A768F /* Frameworks */,
@@ -162,16 +162,16 @@
 			);
 			dependencies = (
 			);
-			name = "Comebackone day 1.1";
+			name = "Comebackone day 1.2";
 			packageProductDependencies = (
 			);
-			productName = "Comebackone day 1.1";
-			productReference = 278E7BF42F0B9E32002A768F /* Comebackone day 1.1.app */;
+			productName = "Comebackone day 1.2";
+			productReference = 278E7BF42F0B9E32002A768F /* Comebackone day 1.2.app */;
 			productType = "com.apple.product-type.application";
 		};
-		278E7C002F0B9E34002A768F /* Comebackone day 1.1Tests */ = {
+		278E7C002F0B9E34002A768F /* Comebackone day 1.2Tests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 278E7C182F0B9E34002A768F /* Build configuration list for PBXNativeTarget "Comebackone day 1.1Tests" */;
+			buildConfigurationList = 278E7C182F0B9E34002A768F /* Build configuration list for PBXNativeTarget "Comebackone day 1.2Tests" */;
 			buildPhases = (
 				278E7BFD2F0B9E34002A768F /* Sources */,
 				278E7BFE2F0B9E34002A768F /* Frameworks */,
@@ -183,18 +183,18 @@
 				278E7C032F0B9E34002A768F /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				278E7C042F0B9E34002A768F /* Comebackone day 1.1Tests */,
+				278E7C042F0B9E34002A768F /* Comebackone day 1.2Tests */,
 			);
-			name = "Comebackone day 1.1Tests";
+			name = "Comebackone day 1.2Tests";
 			packageProductDependencies = (
 			);
-			productName = "Comebackone day 1.1Tests";
-			productReference = 278E7C012F0B9E34002A768F /* Comebackone day 1.1Tests.xctest */;
+			productName = "Comebackone day 1.2Tests";
+			productReference = 278E7C012F0B9E34002A768F /* Comebackone day 1.2Tests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		278E7C0A2F0B9E34002A768F /* Comebackone day 1.1UITests */ = {
+		278E7C0A2F0B9E34002A768F /* Comebackone day 1.2UITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 278E7C1B2F0B9E34002A768F /* Build configuration list for PBXNativeTarget "Comebackone day 1.1UITests" */;
+			buildConfigurationList = 278E7C1B2F0B9E34002A768F /* Build configuration list for PBXNativeTarget "Comebackone day 1.2UITests" */;
 			buildPhases = (
 				278E7C072F0B9E34002A768F /* Sources */,
 				278E7C082F0B9E34002A768F /* Frameworks */,
@@ -206,13 +206,13 @@
 				278E7C0D2F0B9E34002A768F /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				278E7C0E2F0B9E34002A768F /* Comebackone day 1.1UITests */,
+				278E7C0E2F0B9E34002A768F /* Comebackone day 1.2UITests */,
 			);
-			name = "Comebackone day 1.1UITests";
+			name = "Comebackone day 1.2UITests";
 			packageProductDependencies = (
 			);
-			productName = "Comebackone day 1.1UITests";
-			productReference = 278E7C0B2F0B9E34002A768F /* Comebackone day 1.1UITests.xctest */;
+			productName = "Comebackone day 1.2UITests";
+			productReference = 278E7C0B2F0B9E34002A768F /* Comebackone day 1.2UITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -238,7 +238,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 278E7BEF2F0B9E32002A768F /* Build configuration list for PBXProject "Comebackone day 1.1" */;
+			buildConfigurationList = 278E7BEF2F0B9E32002A768F /* Build configuration list for PBXProject "Comebackone day 1.2" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -252,9 +252,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				278E7BF32F0B9E32002A768F /* Comebackone day 1.1 */,
-				278E7C002F0B9E34002A768F /* Comebackone day 1.1Tests */,
-				278E7C0A2F0B9E34002A768F /* Comebackone day 1.1UITests */,
+				278E7BF32F0B9E32002A768F /* Comebackone day 1.2 */,
+				278E7C002F0B9E34002A768F /* Comebackone day 1.2Tests */,
+				278E7C0A2F0B9E34002A768F /* Comebackone day 1.2UITests */,
 			);
 		};
 /* End PBXProject section */
@@ -289,7 +289,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2CA4614C35662D189660FEAD /* Comebackone_day_1_1App.swift in Sources */,
+				2CA4614C35662D189660FEAD /* Comebackone_day_1_2App.swift in Sources */,
 				A5E47B63B2EA0718BC05D37D /* AddMemoryView.swift in Sources */,
 				246A61501A2A1272B832D79B /* CameraView.swift in Sources */,
 				8044A83DFD2F23A8ADEFCEAC /* CloudSyncManager.swift in Sources */,
@@ -326,12 +326,12 @@
 /* Begin PBXTargetDependency section */
 		278E7C032F0B9E34002A768F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 278E7BF32F0B9E32002A768F /* Comebackone day 1.1 */;
+			target = 278E7BF32F0B9E32002A768F /* Comebackone day 1.2 */;
 			targetProxy = 278E7C022F0B9E34002A768F /* PBXContainerItemProxy */;
 		};
 		278E7C0D2F0B9E34002A768F /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 278E7BF32F0B9E32002A768F /* Comebackone day 1.1 */;
+			target = 278E7BF32F0B9E32002A768F /* Comebackone day 1.2 */;
 			targetProxy = 278E7C0C2F0B9E34002A768F /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
@@ -469,8 +469,8 @@
 				ENABLE_DEBUG_DYLIB = NO;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				CODE_SIGN_ENTITLEMENTS = "Comebackone day 1.1/Comebackone day 1.1.entitlements";
-				INFOPLIST_FILE = "Comebackone day 1.1/Info.plist";
+				CODE_SIGN_ENTITLEMENTS = "Comebackone day 1.2/Comebackone day 1.2.entitlements";
+				INFOPLIST_FILE = "Comebackone day 1.2/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Come Back One Day";
 				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of places you want to remember.";
@@ -508,8 +508,8 @@
 				DEVELOPMENT_TEAM = KG2C627Z62;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				CODE_SIGN_ENTITLEMENTS = "Comebackone day 1.1/Comebackone day 1.1.entitlements";
-				INFOPLIST_FILE = "Comebackone day 1.1/Info.plist";
+				CODE_SIGN_ENTITLEMENTS = "Comebackone day 1.2/Comebackone day 1.2.entitlements";
+				INFOPLIST_FILE = "Comebackone day 1.2/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Come Back One Day";
 				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
 				INFOPLIST_KEY_NSCameraUsageDescription = "Take photos of places you want to remember.";
@@ -555,7 +555,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Comebackone day 1.1.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Comebackone day 1.1";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Comebackone day 1.2.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Comebackone day 1.2";
 			};
 			name = Debug;
 		};
@@ -577,7 +577,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Comebackone day 1.1.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Comebackone day 1.1";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Comebackone day 1.2.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Comebackone day 1.2";
 			};
 			name = Release;
 		};
@@ -597,7 +597,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
-				TEST_TARGET_NAME = "Comebackone day 1.1";
+				TEST_TARGET_NAME = "Comebackone day 1.2";
 			};
 			name = Debug;
 		};
@@ -617,14 +617,14 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
-				TEST_TARGET_NAME = "Comebackone day 1.1";
+				TEST_TARGET_NAME = "Comebackone day 1.2";
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		278E7BEF2F0B9E32002A768F /* Build configuration list for PBXProject "Comebackone day 1.1" */ = {
+		278E7BEF2F0B9E32002A768F /* Build configuration list for PBXProject "Comebackone day 1.2" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				278E7C132F0B9E34002A768F /* Debug */,
@@ -633,7 +633,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		278E7C152F0B9E34002A768F /* Build configuration list for PBXNativeTarget "Comebackone day 1.1" */ = {
+		278E7C152F0B9E34002A768F /* Build configuration list for PBXNativeTarget "Comebackone day 1.2" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				278E7C162F0B9E34002A768F /* Debug */,
@@ -642,7 +642,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		278E7C182F0B9E34002A768F /* Build configuration list for PBXNativeTarget "Comebackone day 1.1Tests" */ = {
+		278E7C182F0B9E34002A768F /* Build configuration list for PBXNativeTarget "Comebackone day 1.2Tests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				278E7C192F0B9E34002A768F /* Debug */,
@@ -651,7 +651,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		278E7C1B2F0B9E34002A768F /* Build configuration list for PBXNativeTarget "Comebackone day 1.1UITests" */ = {
+		278E7C1B2F0B9E34002A768F /* Build configuration list for PBXNativeTarget "Comebackone day 1.2UITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				278E7C1C2F0B9E34002A768F /* Debug */,
