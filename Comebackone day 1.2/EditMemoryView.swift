@@ -40,7 +40,6 @@ struct EditMemoryView: View {
     @State private var showingCamera = false
     @State private var capturedImage: UIImage?
 
-    @State private var isReorderingPhotos = false
     @State private var draggingPhotoID: UUID?
     @State private var dragTranslation: CGSize = .zero
 
@@ -96,40 +95,26 @@ struct EditMemoryView: View {
 
                 Section("Photos") {
                     if !photos.isEmpty {
-                        HStack {
-                            Text(isReorderingPhotos
-                                 ? "Drag photos to reorder. The first photo is the cover."
-                                 : "The first photo is the cover.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-
-                            Spacer()
-
-                            if photos.count > 1 {
-                                Button(isReorderingPhotos ? "Done" : "Reorder") {
-                                    withAnimation { isReorderingPhotos.toggle() }
-                                }
-                                .font(.caption.weight(.semibold))
-                            }
-                        }
+                        Text("Touch and hold a photo, then drag to reorder. The first photo is the cover.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: photoSpacing) {
                                 ForEach(photos) { photo in
-                                    photoThumbnail(for: photo, showsRemoveButton: !isReorderingPhotos)
+                                    photoThumbnail(for: photo)
                                         .scaleEffect(draggingPhotoID == photo.id ? 1.08 : 1)
                                         .shadow(radius: draggingPhotoID == photo.id ? 6 : 0)
                                         .zIndex(draggingPhotoID == photo.id ? 1 : 0)
                                         .offset(x: draggingPhotoID == photo.id ? dragTranslation.width : 0)
-                                        .gesture(dragGesture(for: photo), isEnabled: isReorderingPhotos)
+                                        .simultaneousGesture(reorderGesture(for: photo))
                                 }
                             }
                             .padding(.vertical, 4)
                         }
-                        // Scrolling and dragging both want the same horizontal swipe, so only
-                        // one can be active at a time: Reorder mode turns scrolling off entirely
-                        // while it's on, removing the ambiguity instead of trying to referee it.
-                        .scrollDisabled(isReorderingPhotos)
+                        // Locked the instant a hold is recognized (before any movement),
+                        // not reactively once a drag starts — see reorderGesture below for why.
+                        .scrollDisabled(draggingPhotoID != nil)
                     }
 
                     PhotosPicker(selection: $pickerItems, maxSelectionCount: 10, matching: .images) {
@@ -184,9 +169,9 @@ struct EditMemoryView: View {
     }
 
     /// One photo cell: the image (or a placeholder if it failed to load), the cover
-    /// badge, and (outside reorder mode) the remove button.
+    /// badge, and the remove button.
     @ViewBuilder
-    private func photoThumbnail(for photo: EditablePhoto, showsRemoveButton: Bool) -> some View {
+    private func photoThumbnail(for photo: EditablePhoto) -> some View {
         Group {
             if let image = photo.image {
                 Image(uiImage: image)
@@ -217,25 +202,40 @@ struct EditMemoryView: View {
             }
         }
         .overlay(alignment: .topTrailing) {
-            if showsRemoveButton {
-                Button(action: {
-                    photos.removeAll { $0.id == photo.id }
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(.white, .black.opacity(0.6))
-                }
-                .padding(4)
+            Button(action: {
+                photos.removeAll { $0.id == photo.id }
+            }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.white, .black.opacity(0.6))
             }
+            .padding(4)
         }
     }
 
-    /// Reorder-mode drag: responds immediately (scrolling is disabled while this is
-    /// active, so there's no competing gesture to disambiguate against).
-    private func dragGesture(for photo: EditablePhoto) -> some Gesture {
-        DragGesture(minimumDistance: 0)
+    /// Touch-and-hold-then-drag reorder.
+    ///
+    /// A drag on this strip is trying to win the same touch as the ScrollView's own
+    /// swipe-to-scroll. The fix isn't picking a winner up front — it's making sure
+    /// nothing is ambiguous by the time movement starts: `draggingPhotoID` (which
+    /// disables the ScrollView) is set the instant the long press itself succeeds,
+    /// in the `.first(true)` case below, while the finger is still stationary and
+    /// the ScrollView's pan recognizer has had no movement to react to yet. Only
+    /// after that does the drag phase begin. A quick swipe never reaches that
+    /// point — the long press fails on movement before the hold completes — so it
+    /// falls straight through to the ScrollView untouched.
+    private func reorderGesture(for photo: EditablePhoto) -> some Gesture {
+        LongPressGesture(minimumDuration: 0.35)
+            .sequenced(before: DragGesture(minimumDistance: 0))
             .onChanged { value in
-                handleDragChange(photo: photo, translation: value.translation)
+                switch value {
+                case .first(true):
+                    draggingPhotoID = photo.id
+                case .second(true, let drag):
+                    handleDragChange(photo: photo, translation: drag?.translation ?? .zero)
+                default:
+                    break
+                }
             }
             .onEnded { _ in
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
@@ -246,7 +246,6 @@ struct EditMemoryView: View {
     }
 
     private func handleDragChange(photo: EditablePhoto, translation: CGSize) {
-        draggingPhotoID = photo.id
         dragTranslation = translation
 
         guard let currentIndex = photos.firstIndex(where: { $0.id == photo.id }) else { return }
