@@ -40,9 +40,6 @@ struct EditMemoryView: View {
     @State private var showingCamera = false
     @State private var capturedImage: UIImage?
 
-    @State private var draggingPhotoID: UUID?
-    @State private var dragTranslation: CGSize = .zero
-
     private let photoSize: CGFloat = 80
     private let photoSpacing: CGFloat = 10
 
@@ -102,55 +99,17 @@ struct EditMemoryView: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: photoSpacing) {
                                 ForEach(photos) { photo in
-                                    Group {
-                                        if let image = photo.image {
-                                            Image(uiImage: image)
-                                                .resizable()
-                                                .scaledToFill()
-                                        } else {
-                                            // Still show a slot for a photo that failed to load
-                                            // (e.g. not finished downloading from iCloud yet)
-                                            // rather than silently dropping it from the list.
-                                            ZStack {
-                                                Color.secondary.opacity(0.15)
-                                                Image(systemName: "photo.badge.exclamationmark")
-                                                    .foregroundStyle(.secondary)
-                                            }
+                                    photoThumbnail(for: photo)
+                                        .draggable(photo.id.uuidString) {
+                                            photoThumbnail(for: photo)
                                         }
-                                    }
-                                    .frame(width: photoSize, height: photoSize)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                                    .overlay(alignment: .bottomLeading) {
-                                        if photos.first?.id == photo.id {
-                                            Text("Cover")
-                                                .font(.caption2.weight(.semibold))
-                                                .padding(.horizontal, 6)
-                                                .padding(.vertical, 2)
-                                                .background(.blue, in: Capsule())
-                                                .foregroundStyle(.white)
-                                                .padding(4)
+                                        .dropDestination(for: String.self) { items, _ in
+                                            movePhoto(draggedID: items.first, before: photo.id)
                                         }
-                                    }
-                                    .overlay(alignment: .topTrailing) {
-                                        Button(action: {
-                                            photos.removeAll { $0.id == photo.id }
-                                        }) {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .font(.title3)
-                                                .foregroundStyle(.white, .black.opacity(0.6))
-                                        }
-                                        .padding(4)
-                                    }
-                                    .scaleEffect(draggingPhotoID == photo.id ? 1.08 : 1)
-                                    .shadow(radius: draggingPhotoID == photo.id ? 6 : 0)
-                                    .zIndex(draggingPhotoID == photo.id ? 1 : 0)
-                                    .offset(x: draggingPhotoID == photo.id ? dragTranslation.width : 0)
-                                    .simultaneousGesture(reorderGesture(for: photo))
                                 }
                             }
                             .padding(.vertical, 4)
                         }
-                        .scrollDisabled(draggingPhotoID != nil)
                     }
 
                     PhotosPicker(selection: $pickerItems, maxSelectionCount: 10, matching: .images) {
@@ -204,44 +163,62 @@ struct EditMemoryView: View {
         }
     }
 
-    /// A touch-and-hold-then-drag gesture that reorders `photos` live as the finger moves,
-    /// so it doesn't fight the horizontal ScrollView's own pan gesture for a quick swipe.
-    private func reorderGesture(for photo: EditablePhoto) -> some Gesture {
-        LongPressGesture(minimumDuration: 0.25)
-            .sequenced(before: DragGesture(minimumDistance: 0))
-            .onChanged { value in
-                switch value {
-                case .second(true, let drag):
-                    handleDragChange(photo: photo, translation: drag?.translation ?? .zero)
-                default:
-                    break
+    /// One photo cell: the image (or a placeholder if it failed to load), the cover
+    /// badge, and the remove button. Reused for both the strip and the drag preview.
+    @ViewBuilder
+    private func photoThumbnail(for photo: EditablePhoto) -> some View {
+        Group {
+            if let image = photo.image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                // Still show a slot for a photo that failed to load
+                // (e.g. not finished downloading from iCloud yet)
+                // rather than silently dropping it from the list.
+                ZStack {
+                    Color.secondary.opacity(0.15)
+                    Image(systemName: "photo.badge.exclamationmark")
+                        .foregroundStyle(.secondary)
                 }
             }
-            .onEnded { _ in
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    draggingPhotoID = nil
-                    dragTranslation = .zero
-                }
+        }
+        .frame(width: photoSize, height: photoSize)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(alignment: .bottomLeading) {
+            if photos.first?.id == photo.id {
+                Text("Cover")
+                    .font(.caption2.weight(.semibold))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(.blue, in: Capsule())
+                    .foregroundStyle(.white)
+                    .padding(4)
             }
+        }
+        .overlay(alignment: .topTrailing) {
+            Button(action: {
+                photos.removeAll { $0.id == photo.id }
+            }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.white, .black.opacity(0.6))
+            }
+            .padding(4)
+        }
     }
 
-    private func handleDragChange(photo: EditablePhoto, translation: CGSize) {
-        draggingPhotoID = photo.id
-        dragTranslation = translation
-
-        guard let currentIndex = photos.firstIndex(where: { $0.id == photo.id }) else { return }
-        let stride = photoSize + photoSpacing
-        let slotShift = Int((translation.width / stride).rounded())
-        guard slotShift != 0 else { return }
-        let targetIndex = min(max(currentIndex + slotShift, 0), photos.count - 1)
-        guard targetIndex != currentIndex else { return }
-
-        withAnimation(.easeInOut(duration: 0.2)) {
-            let moved = photos.remove(at: currentIndex)
-            photos.insert(moved, at: targetIndex)
+    /// Drag-reorder: drops the dragged photo immediately before the target.
+    private func movePhoto(draggedID: String?, before targetID: UUID) -> Bool {
+        guard let draggedID,
+              let from = photos.firstIndex(where: { $0.id.uuidString == draggedID }),
+              photos.contains(where: { $0.id == targetID }) else { return false }
+        withAnimation {
+            let photo = photos.remove(at: from)
+            let target = photos.firstIndex(where: { $0.id == targetID }) ?? photos.count
+            photos.insert(photo, at: target)
         }
-        // The item's "home" slot just changed; keep only the leftover fractional drag.
-        dragTranslation.width -= CGFloat(targetIndex - currentIndex) * stride
+        return true
     }
 
     private func saveChanges() {
