@@ -39,9 +39,7 @@ struct EditMemoryView: View {
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var showingCamera = false
     @State private var capturedImage: UIImage?
-
-    @State private var draggingPhotoID: UUID?
-    @State private var dragTranslation: CGSize = .zero
+    @State private var showingReorderSheet = false
 
     private let photoSize: CGFloat = 80
     private let photoSpacing: CGFloat = 10
@@ -95,7 +93,7 @@ struct EditMemoryView: View {
 
                 Section("Photos") {
                     if !photos.isEmpty {
-                        Text("Touch and hold a photo, then drag to reorder. The first photo is the cover.")
+                        Text("The first photo is the cover.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
@@ -103,18 +101,18 @@ struct EditMemoryView: View {
                             HStack(spacing: photoSpacing) {
                                 ForEach(photos) { photo in
                                     photoThumbnail(for: photo)
-                                        .scaleEffect(draggingPhotoID == photo.id ? 1.08 : 1)
-                                        .shadow(radius: draggingPhotoID == photo.id ? 6 : 0)
-                                        .zIndex(draggingPhotoID == photo.id ? 1 : 0)
-                                        .offset(x: draggingPhotoID == photo.id ? dragTranslation.width : 0)
-                                        .simultaneousGesture(reorderGesture(for: photo))
                                 }
                             }
                             .padding(.vertical, 4)
                         }
-                        // Locked the instant a hold is recognized (before any movement),
-                        // not reactively once a drag starts — see reorderGesture below for why.
-                        .scrollDisabled(draggingPhotoID != nil)
+
+                        if photos.count > 1 {
+                            Button {
+                                showingReorderSheet = true
+                            } label: {
+                                Label("Reorder Photos", systemImage: "arrow.left.arrow.right")
+                            }
+                        }
                     }
 
                     PhotosPicker(selection: $pickerItems, maxSelectionCount: 10, matching: .images) {
@@ -165,6 +163,9 @@ struct EditMemoryView: View {
                     capturedImage = nil
                 }
             }
+            .sheet(isPresented: $showingReorderSheet) {
+                PhotoReorderSheet(photos: $photos)
+            }
         }
     }
 
@@ -213,56 +214,6 @@ struct EditMemoryView: View {
         }
     }
 
-    /// Touch-and-hold-then-drag reorder.
-    ///
-    /// A drag on this strip is trying to win the same touch as the ScrollView's own
-    /// swipe-to-scroll. The fix isn't picking a winner up front — it's making sure
-    /// nothing is ambiguous by the time movement starts: `draggingPhotoID` (which
-    /// disables the ScrollView) is set the instant the long press itself succeeds,
-    /// in the `.first(true)` case below, while the finger is still stationary and
-    /// the ScrollView's pan recognizer has had no movement to react to yet. Only
-    /// after that does the drag phase begin. A quick swipe never reaches that
-    /// point — the long press fails on movement before the hold completes — so it
-    /// falls straight through to the ScrollView untouched.
-    private func reorderGesture(for photo: EditablePhoto) -> some Gesture {
-        LongPressGesture(minimumDuration: 0.35)
-            .sequenced(before: DragGesture(minimumDistance: 0))
-            .onChanged { value in
-                switch value {
-                case .first(true):
-                    draggingPhotoID = photo.id
-                case .second(true, let drag):
-                    handleDragChange(photo: photo, translation: drag?.translation ?? .zero)
-                default:
-                    break
-                }
-            }
-            .onEnded { _ in
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    draggingPhotoID = nil
-                    dragTranslation = .zero
-                }
-            }
-    }
-
-    private func handleDragChange(photo: EditablePhoto, translation: CGSize) {
-        dragTranslation = translation
-
-        guard let currentIndex = photos.firstIndex(where: { $0.id == photo.id }) else { return }
-        let stride = photoSize + photoSpacing
-        let slotShift = Int((translation.width / stride).rounded())
-        guard slotShift != 0 else { return }
-        let targetIndex = min(max(currentIndex + slotShift, 0), photos.count - 1)
-        guard targetIndex != currentIndex else { return }
-
-        withAnimation(.easeInOut(duration: 0.2)) {
-            let moved = photos.remove(at: currentIndex)
-            photos.insert(moved, at: targetIndex)
-        }
-        // The item's "home" slot just changed; keep only the leftover fractional drag.
-        dragTranslation.width -= CGFloat(targetIndex - currentIndex) * stride
-    }
-
     private func saveChanges() {
         var updated = memory
         updated.name = name.trimmingCharacters(in: .whitespaces)
@@ -290,5 +241,88 @@ struct EditMemoryView: View {
 
         store.update(updated)
         dismiss()
+    }
+
+    /// A dedicated screen for reordering, separate from the browsing strip above.
+    ///
+    /// Three different drag techniques on the horizontal photo strip all lost the
+    /// same fight: a drag and a horizontal scroll swipe look identical to the
+    /// gesture system at touch-down, and on this hardware that ambiguity broke
+    /// scrolling outright rather than resolving cleanly either way. A grid has no
+    /// competing scroll axis for a drag to fight — everything fits without
+    /// scrolling for a normal photo count — so native drag-and-drop just works.
+    private struct PhotoReorderSheet: View {
+        @Binding var photos: [EditablePhoto]
+        @Environment(\.dismiss) private var dismiss
+
+        private let columns = [GridItem(.adaptive(minimum: 90), spacing: 12)]
+
+        var body: some View {
+            NavigationStack {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        ForEach(photos) { photo in
+                            thumbnail(for: photo)
+                                .draggable(photo.id.uuidString) {
+                                    thumbnail(for: photo)
+                                }
+                                .dropDestination(for: String.self) { items, _ in
+                                    move(draggedID: items.first, before: photo.id)
+                                }
+                        }
+                    }
+                    .padding()
+                }
+                .navigationTitle("Reorder Photos")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { dismiss() }
+                    }
+                }
+            }
+        }
+
+        @ViewBuilder
+        private func thumbnail(for photo: EditablePhoto) -> some View {
+            Group {
+                if let image = photo.image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    ZStack {
+                        Color.secondary.opacity(0.15)
+                        Image(systemName: "photo.badge.exclamationmark")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .frame(width: 90, height: 90)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(alignment: .bottomLeading) {
+                if photos.first?.id == photo.id {
+                    Text("Cover")
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(.blue, in: Capsule())
+                        .foregroundStyle(.white)
+                        .padding(4)
+                }
+            }
+        }
+
+        private func move(draggedID: String?, before targetID: UUID) -> Bool {
+            guard let draggedID,
+                  let from = photos.firstIndex(where: { $0.id.uuidString == draggedID }),
+                  photos.contains(where: { $0.id == targetID }) else { return false }
+            withAnimation {
+                let photo = photos.remove(at: from)
+                let target = photos.firstIndex(where: { $0.id == targetID }) ?? photos.count
+                photos.insert(photo, at: target)
+            }
+            return true
+        }
     }
 }
