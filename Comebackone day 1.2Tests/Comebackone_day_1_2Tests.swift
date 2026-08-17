@@ -157,4 +157,53 @@ struct TravelMemoryCodingTests {
         )
         #expect(memory.country == nil)
     }
+
+    @Test func missingPhoneNumberDecodesToNil() throws {
+        let json = """
+        [{
+            "id": "08D8A3C4-A65B-4119-876A-C7789A460D4F",
+            "name": "Old Place",
+            "latitude": -27.5,
+            "longitude": 153.0,
+            "category": "Restaurant",
+            "dateAdded": 700000000.0
+        }]
+        """
+        let memories = try JSONDecoder().decode([TravelMemory].self, from: Data(json.utf8))
+        #expect(memories[0].phoneNumber == nil)
+    }
+
+    @Test func phoneCallURLStripsFormattingButKeepsPlus() throws {
+        let memory = TravelMemory(
+            name: "Omilos",
+            latitude: -27.4705,
+            longitude: 153.0260,
+            category: .restaurant,
+            phoneNumber: "+1 (555) 123-4567"
+        )
+        #expect(memory.phoneCallURL?.absoluteString == "tel:+15551234567")
+    }
+
+    @Test func phoneCallURLIsNilWithoutAPhoneNumber() throws {
+        let memory = TravelMemory(
+            name: "No Phone",
+            latitude: 0,
+            longitude: 0,
+            category: .location
+        )
+        #expect(memory.phoneCallURL == nil)
+    }
+
+    @Test func sharedDeepLinkCarriesPhoneNumber() throws {
+        let original = TravelMemory(
+            name: "Omilos",
+            latitude: -27.4705,
+            longitude: 153.0260,
+            category: .restaurant,
+            phoneNumber: "+61 7 1234 5678"
+        )
+        let url = try #require(original.shareURL)
+        let imported = try #require(TravelMemory(shareURL: url))
+        #expect(imported.phoneNumber == "+61 7 1234 5678")
+    }
 }

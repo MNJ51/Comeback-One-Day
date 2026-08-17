@@ -89,6 +89,13 @@ struct MemoryDetailView: View {
                                 }
                             }
 
+                            if let phoneCallURL = memory.phoneCallURL, let phoneNumber = memory.phoneNumber {
+                                HStack(alignment: .top) {
+                                    Image(systemName: "phone.fill")
+                                    Link(phoneNumber, destination: phoneCallURL)
+                                }
+                            }
+
                             if let dateVisited = memory.dateVisited {
                                 HStack {
                                     Image(systemName: "calendar")
@@ -232,6 +239,9 @@ struct MemoryDetailView: View {
         }
         if let websiteURL = memory.websiteURL {
             lines.append(websiteURL.absoluteString)
+        }
+        if let phoneNumber = memory.phoneNumber {
+            lines.append(phoneNumber)
         }
         if !memory.notes.isEmpty {
             lines.append(memory.notes)

@@ -35,14 +35,23 @@ class LocationSearchService: NSObject, ObservableObject {
         completer.queryFragment = query
     }
 
-    func resolve(_ completion: MKLocalSearchCompletion) async -> (name: String, coordinate: CLLocationCoordinate2D, address: String?)? {
+    /// Resolves a search suggestion to a full place, including the website and
+    /// phone number MapKit already knows for the business (when it has them) —
+    /// no separate lookup or API key needed.
+    func resolve(_ completion: MKLocalSearchCompletion) async -> (name: String, coordinate: CLLocationCoordinate2D, address: String?, website: String?, phoneNumber: String?)? {
         let search = MKLocalSearch(request: MKLocalSearch.Request(completion: completion))
         guard let response = try? await search.start(),
               let item = response.mapItems.first else {
             return nil
         }
         let placemark = item.placemark
-        return (item.name ?? completion.title, placemark.coordinate, Self.formattedAddress(from: placemark))
+        return (
+            item.name ?? completion.title,
+            placemark.coordinate,
+            Self.formattedAddress(from: placemark),
+            item.url?.absoluteString,
+            item.phoneNumber
+        )
     }
 
     /// Looks up a human-readable address for a coordinate.

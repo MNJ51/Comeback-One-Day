@@ -55,6 +55,8 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     var address: String?
     /// The business's website, as typed by the user (scheme optional).
     var website: String?
+    /// The business's phone number, as typed by the user or auto-filled from search.
+    var phoneNumber: String?
     /// 0 means unrated, otherwise 1–5 stars.
     var rating: Int
     var notes: String
@@ -65,7 +67,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     /// The sender's device name, captured when this place was imported from a shared link.
     var senderName: String?
 
-    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, website: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil, isReceivedFromShare: Bool = false, senderName: String? = nil) {
+    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, website: String? = nil, phoneNumber: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil, isReceivedFromShare: Bool = false, senderName: String? = nil) {
         self.id = id
         self.name = name
         self.latitude = latitude
@@ -74,6 +76,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         self.photoFilenames = photoFilenames
         self.address = address
         self.website = website
+        self.phoneNumber = phoneNumber
         self.rating = rating
         self.notes = notes
         self.dateAdded = dateAdded
@@ -99,7 +102,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, website, rating, notes, dateAdded, dateVisited, isReceivedFromShare, senderName
+        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, website, phoneNumber, rating, notes, dateAdded, dateVisited, isReceivedFromShare, senderName
     }
 
     init(from decoder: Decoder) throws {
@@ -119,6 +122,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         }
         address = try container.decodeIfPresent(String.self, forKey: .address)
         website = try container.decodeIfPresent(String.self, forKey: .website)
+        phoneNumber = try container.decodeIfPresent(String.self, forKey: .phoneNumber)
         rating = try container.decodeIfPresent(Int.self, forKey: .rating) ?? 0
         notes = try container.decodeIfPresent(String.self, forKey: .notes) ?? ""
         dateAdded = try container.decode(Date.self, forKey: .dateAdded)
@@ -137,6 +141,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         try container.encode(photoFilenames, forKey: .photoFilenames)
         try container.encodeIfPresent(address, forKey: .address)
         try container.encodeIfPresent(website, forKey: .website)
+        try container.encodeIfPresent(phoneNumber, forKey: .phoneNumber)
         try container.encode(rating, forKey: .rating)
         try container.encode(notes, forKey: .notes)
         try container.encode(dateAdded, forKey: .dateAdded)
@@ -151,6 +156,17 @@ extension String {
     var trimmedNonEmpty: String? {
         let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
+extension TravelMemory {
+    /// The phone number as a tappable tel: URL, stripped of everything a dialer
+    /// doesn't need (spaces, parens, dashes) while keeping a leading "+".
+    var phoneCallURL: URL? {
+        guard let phoneNumber, let trimmed = phoneNumber.trimmedNonEmpty else { return nil }
+        let dialable = trimmed.filter { $0.isNumber || $0 == "+" }
+        guard !dialable.isEmpty else { return nil }
+        return URL(string: "tel:\(dialable)")
     }
 }
 
@@ -186,6 +202,7 @@ extension TravelMemory {
         ]
         if let address { items.append(URLQueryItem(name: "addr", value: address)) }
         if let website, !website.isEmpty { items.append(URLQueryItem(name: "web", value: website)) }
+        if let phoneNumber, !phoneNumber.isEmpty { items.append(URLQueryItem(name: "phone", value: phoneNumber)) }
         if !notes.isEmpty { items.append(URLQueryItem(name: "notes", value: notes)) }
         if let dateVisited {
             items.append(URLQueryItem(name: "date", value: String(Int(dateVisited.timeIntervalSince1970))))
@@ -217,6 +234,7 @@ extension TravelMemory {
             photoFilenames: [],
             address: value("addr"),
             website: value("web"),
+            phoneNumber: value("phone"),
             rating: Int(value("rating") ?? "") ?? 0,
             notes: value("notes") ?? "",
             dateVisited: value("date").flatMap(Double.init).map { Date(timeIntervalSince1970: $0) },

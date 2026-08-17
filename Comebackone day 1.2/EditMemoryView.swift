@@ -30,6 +30,7 @@ struct EditMemoryView: View {
 
     @State private var name: String
     @State private var website: String
+    @State private var phoneNumber: String
     @State private var category: Category
     @State private var dateVisited: Date
     @State private var rating: Int
@@ -48,6 +49,7 @@ struct EditMemoryView: View {
         self.memory = memory
         _name = State(initialValue: memory.name)
         _website = State(initialValue: memory.website ?? "")
+        _phoneNumber = State(initialValue: memory.phoneNumber ?? "")
         _category = State(initialValue: memory.category)
         _dateVisited = State(initialValue: memory.dateVisited ?? Date())
         _rating = State(initialValue: memory.rating)
@@ -69,6 +71,9 @@ struct EditMemoryView: View {
                         .keyboardType(.URL)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
+
+                    TextField("Phone (optional)", text: $phoneNumber)
+                        .keyboardType(.phonePad)
 
                     DatePicker("Date Visited", selection: $dateVisited, displayedComponents: .date)
 
@@ -218,6 +223,7 @@ struct EditMemoryView: View {
         var updated = memory
         updated.name = name.trimmingCharacters(in: .whitespaces)
         updated.website = website.trimmedNonEmpty
+        updated.phoneNumber = phoneNumber.trimmedNonEmpty
         updated.category = category
         updated.dateVisited = dateVisited
         updated.rating = rating

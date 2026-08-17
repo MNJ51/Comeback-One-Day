@@ -53,6 +53,7 @@ struct AddMemoryView: View {
 
     @State private var name = ""
     @State private var website = ""
+    @State private var phoneNumber = ""
     @State private var category = Category.restaurant
     @State private var dateVisited = Date()
     @State private var rating = 0
@@ -82,6 +83,9 @@ struct AddMemoryView: View {
                         .keyboardType(.URL)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
+
+                    TextField("Phone (optional)", text: $phoneNumber)
+                        .keyboardType(.phonePad)
 
                     DatePicker("Date Visited", selection: $dateVisited, displayedComponents: .date)
 
@@ -230,6 +234,13 @@ struct AddMemoryView: View {
                 if name.trimmingCharacters(in: .whitespaces).isEmpty {
                     name = resolved.name
                 }
+                // Only fill in what the user hasn't already typed themselves.
+                if website.trimmingCharacters(in: .whitespaces).isEmpty, let resolvedWebsite = resolved.website {
+                    website = resolvedWebsite
+                }
+                if phoneNumber.trimmingCharacters(in: .whitespaces).isEmpty, let resolvedPhone = resolved.phoneNumber {
+                    phoneNumber = resolvedPhone
+                }
                 searchText = ""
                 searchService.search("")
             }
@@ -259,6 +270,7 @@ struct AddMemoryView: View {
             photoFilenames: filenames,
             address: selectedAddress,
             website: website.trimmedNonEmpty,
+            phoneNumber: phoneNumber.trimmedNonEmpty,
             rating: rating,
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
             dateVisited: dateVisited
