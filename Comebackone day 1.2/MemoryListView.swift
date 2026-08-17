@@ -10,12 +10,23 @@ struct MemoryListView: View {
     @State private var selectedMemory: TravelMemory?
     @State private var searchText = ""
     @State private var filterCategory: Category?
+    @State private var filterCountry: String?
+
+    /// Every distinct country found in the saved places' addresses, for the filter menu.
+    private var availableCountries: [String] {
+        let countries = store.memories.compactMap(\.country)
+        return Array(Set(countries)).sorted()
+    }
 
     private var visibleMemories: [TravelMemory] {
         var result = store.memories
 
         if let filterCategory {
             result = result.filter { $0.category == filterCategory }
+        }
+
+        if let filterCountry {
+            result = result.filter { $0.country == filterCountry }
         }
 
         let query = searchText.trimmingCharacters(in: .whitespaces)
@@ -71,8 +82,17 @@ struct MemoryListView: View {
                                 Label(cat.rawValue, systemImage: cat.icon).tag(Category?.some(cat))
                             }
                         }
+
+                        if !availableCountries.isEmpty {
+                            Picker("Country", selection: $filterCountry) {
+                                Text("All Countries").tag(String?.none)
+                                ForEach(availableCountries, id: \.self) { country in
+                                    Text(country).tag(String?.some(country))
+                                }
+                            }
+                        }
                     } label: {
-                        Image(systemName: filterCategory == nil
+                        Image(systemName: (filterCategory == nil && filterCountry == nil)
                               ? "line.3.horizontal.decrease.circle"
                               : "line.3.horizontal.decrease.circle.fill")
                     }
@@ -132,11 +152,26 @@ struct MemoryRow: View {
                     }
                 }
 
+                if let country = memory.country {
+                    HStack(spacing: 4) {
+                        Image(systemName: "globe")
+                            .font(.caption2)
+                        Text(country)
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.secondary)
+                }
+
                 StarRatingLabel(rating: memory.rating, font: .caption2)
             }
 
             Spacer()
         }
         .padding(.vertical, 2)
+        // Without this, taps in the empty trailing space (after the text, before
+        // the row's edge) don't register — only taps on the actual rendered
+        // content (image, text) count as a hit, since SwiftUI's default hit
+        // testing skips fully transparent regions like a bare Spacer().
+        .contentShape(Rectangle())
     }
 }

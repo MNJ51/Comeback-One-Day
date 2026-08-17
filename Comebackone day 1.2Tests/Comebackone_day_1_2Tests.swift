@@ -136,4 +136,25 @@ struct TravelMemoryCodingTests {
         let memories = try JSONDecoder().decode([TravelMemory].self, from: Data(json.utf8))
         #expect(memories[0].senderName == nil)
     }
+
+    @Test func countryReadsLastAddressComponent() throws {
+        let memory = TravelMemory(
+            name: "Omilos",
+            latitude: -27.4705,
+            longitude: 153.0260,
+            category: .restaurant,
+            address: "94 Poath Rd, Hughesdale, VIC, 3166, Australia"
+        )
+        #expect(memory.country == "Australia")
+    }
+
+    @Test func countryIsNilWithoutAnAddress() throws {
+        let memory = TravelMemory(
+            name: "No Address",
+            latitude: 0,
+            longitude: 0,
+            category: .location
+        )
+        #expect(memory.country == nil)
+    }
 }

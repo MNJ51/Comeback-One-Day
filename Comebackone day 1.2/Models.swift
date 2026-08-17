@@ -86,6 +86,13 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
     }
 
+    /// The country, read off the end of the stored address (LocationSearchService
+    /// always appends it last: "street, suburb, state, postcode, country").
+    var country: String? {
+        guard let last = address?.split(separator: ",").last else { return nil }
+        return String(last).trimmingCharacters(in: .whitespaces).trimmedNonEmpty
+    }
+
     /// The photo shown on map pins and list rows.
     var coverPhotoFilename: String? {
         photoFilenames.first
