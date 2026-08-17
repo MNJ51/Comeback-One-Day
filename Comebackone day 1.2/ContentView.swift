@@ -87,42 +87,37 @@ struct BottomActionBar: View {
     @Binding var showingAddMemory: Bool
     @Binding var showingQuickCamera: Bool
 
-    static let height: CGFloat = 78
+    static let height: CGFloat = 92
 
     var body: some View {
         HStack(spacing: 0) {
-            barButton(icon: "map.fill", label: "Map", isSelected: selectedTab == .map) {
+            tabButton(icon: "map.fill", label: "Map", isSelected: selectedTab == .map) {
                 selectedTab = .map
             }
 
-            barButton(icon: "list.bullet", label: "Places", isSelected: selectedTab == .places) {
+            tabButton(icon: "list.bullet", label: "Places", isSelected: selectedTab == .places) {
                 selectedTab = .places
             }
 
             if CameraView.isAvailable {
-                barButton(icon: "camera.fill", label: "Camera", tint: .green) {
+                largeButton(icon: "camera.circle.fill", tint: .green) {
                     showingQuickCamera = true
                 }
             }
 
-            barButton(icon: "plus.circle.fill", label: "Add", tint: .blue) {
+            largeButton(icon: "plus.circle.fill", tint: .blue) {
                 showingAddMemory = true
             }
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 8)
         .background(.thickMaterial, in: Capsule())
         .shadow(radius: 4)
         .padding(.horizontal)
     }
 
+    /// Map/Places: compact icon-over-label, matching a standard tab item.
     @ViewBuilder
-    private func barButton(
-        icon: String,
-        label: String,
-        isSelected: Bool = false,
-        tint: Color = .primary,
-        action: @escaping () -> Void
-    ) -> some View {
+    private func tabButton(icon: String, label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 3) {
                 Image(systemName: icon)
@@ -130,8 +125,22 @@ struct BottomActionBar: View {
                 Text(label)
                     .font(.caption2)
             }
-            .foregroundStyle(isSelected ? Color.accentColor : tint)
+            .foregroundStyle(isSelected ? Color.accentColor : .primary)
             .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Camera/Add: the original large, colorful circular icons, just moved
+    /// into this same row instead of floating separately above it.
+    @ViewBuilder
+    private func largeButton(icon: String, tint: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 50))
+                .foregroundStyle(tint)
+                .shadow(radius: 3)
+                .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
     }
