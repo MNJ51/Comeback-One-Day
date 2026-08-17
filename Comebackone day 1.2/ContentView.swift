@@ -73,9 +73,13 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showingAddMemory) {
             AddMemoryView()
+                .environmentObject(store)
+                .environmentObject(locationManager)
         }
         .sheet(isPresented: $showingQuickCamera) {
             QuickCameraView()
+                .environmentObject(store)
+                .environmentObject(locationManager)
         }
     }
 }
