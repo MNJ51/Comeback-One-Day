@@ -8,23 +8,42 @@
 import SwiftUI
 import MapKit
 
+enum AppTab {
+    case map
+    case places
+}
+
 struct ContentView: View {
     @StateObject private var store = MemoryStore()
     @StateObject private var locationManager = LocationManager()
     @Environment(\.scenePhase) private var scenePhase
     @State private var pendingImport: TravelMemory?
+    @State private var selectedTab: AppTab = .map
+    @State private var showingAddMemory = false
+    @State private var showingQuickCamera = false
 
     var body: some View {
-        TabView {
-            MapTabView()
-                .tabItem {
-                    Label("Map", systemImage: "map.fill")
-                }
+        ZStack(alignment: .bottom) {
+            TabView(selection: $selectedTab) {
+                MapTabView()
+                    .tag(AppTab.map)
+                    .toolbar(.hidden, for: .tabBar)
 
-            MemoryListView()
-                .tabItem {
-                    Label("Places", systemImage: "list.bullet")
-                }
+                MemoryListView()
+                    .tag(AppTab.places)
+                    .toolbar(.hidden, for: .tabBar)
+            }
+            .safeAreaInset(edge: .bottom) {
+                // Reserves room so list content doesn't sit behind the floating
+                // bar below; the map still goes edge-to-edge under it as before.
+                Color.clear.frame(height: BottomActionBar.height)
+            }
+
+            BottomActionBar(
+                selectedTab: $selectedTab,
+                showingAddMemory: $showingAddMemory,
+                showingQuickCamera: $showingQuickCamera
+            )
         }
         .environmentObject(store)
         .environmentObject(locationManager)
@@ -52,6 +71,69 @@ struct ContentView: View {
         } message: { place in
             Text("Add “\(place.name)” to your places?")
         }
+        .sheet(isPresented: $showingAddMemory) {
+            AddMemoryView()
+        }
+        .sheet(isPresented: $showingQuickCamera) {
+            QuickCameraView()
+        }
+    }
+}
+
+/// The single floating bar along the bottom: Map/Places tab switching plus the
+/// Camera and Add actions, all in one line instead of stacked in two rows.
+struct BottomActionBar: View {
+    @Binding var selectedTab: AppTab
+    @Binding var showingAddMemory: Bool
+    @Binding var showingQuickCamera: Bool
+
+    static let height: CGFloat = 78
+
+    var body: some View {
+        HStack(spacing: 0) {
+            barButton(icon: "map.fill", label: "Map", isSelected: selectedTab == .map) {
+                selectedTab = .map
+            }
+
+            barButton(icon: "list.bullet", label: "Places", isSelected: selectedTab == .places) {
+                selectedTab = .places
+            }
+
+            if CameraView.isAvailable {
+                barButton(icon: "camera.fill", label: "Camera", tint: .green) {
+                    showingQuickCamera = true
+                }
+            }
+
+            barButton(icon: "plus.circle.fill", label: "Add", tint: .blue) {
+                showingAddMemory = true
+            }
+        }
+        .padding(.vertical, 10)
+        .background(.thickMaterial, in: Capsule())
+        .shadow(radius: 4)
+        .padding(.horizontal)
+    }
+
+    @ViewBuilder
+    private func barButton(
+        icon: String,
+        label: String,
+        isSelected: Bool = false,
+        tint: Color = .primary,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: 3) {
+                Image(systemName: icon)
+                    .font(.system(size: 21))
+                Text(label)
+                    .font(.caption2)
+            }
+            .foregroundStyle(isSelected ? Color.accentColor : tint)
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -70,8 +152,6 @@ struct MapTabView: View {
         )
     )
 
-    @State private var showingAddMemory = false
-    @State private var showingQuickCamera = false
     @State private var selectedMemory: TravelMemory?
     @State private var filterCategory: Category?
 
@@ -113,38 +193,7 @@ struct MapTabView: View {
                 .padding(.top, 8)
 
                 Spacer()
-                HStack {
-                    Spacer()
-
-                    if CameraView.isAvailable {
-                        Button(action: {
-                            showingQuickCamera = true
-                        }) {
-                            Image(systemName: "camera.circle.fill")
-                                .font(.system(size: 60))
-                                .foregroundStyle(.green)
-                                .shadow(radius: 4)
-                        }
-                        .padding(.trailing, 10)
-                    }
-
-                    Button(action: {
-                        showingAddMemory = true
-                    }) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 60))
-                            .foregroundStyle(.blue)
-                            .shadow(radius: 4)
-                    }
-                    .padding(.trailing, 30)
-                }
             }
-        }
-        .sheet(isPresented: $showingAddMemory) {
-            AddMemoryView()
-        }
-        .sheet(isPresented: $showingQuickCamera) {
-            QuickCameraView()
         }
         .sheet(item: $selectedMemory) { memory in
             MemoryDetailView(memoryID: memory.id)
