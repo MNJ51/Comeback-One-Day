@@ -35,7 +35,7 @@ There are no shared (`.xcscheme`) schemes checked into the project — Xcode/xco
 
 **Data model** ([Models.swift](Comebackone day 1.2/Models.swift)): `TravelMemory` is the core struct — a saved place with coordinates, category, photos, rating, notes, and visit date. Its `Codable` implementation is hand-written to stay backward-compatible with older JSON shapes (e.g. a single `photoFilename` string migrating to `photoFilenames: [String]`) — when adding fields, extend the custom `init(from:)`/`encode(to:)` rather than relying on synthesized conformance, and add a decode test alongside the existing ones in `Comebackone day 1.2Tests`.
 
-`TravelMemory` also encodes/decodes itself as a `comebackoneday://add?...` deep link (see the "Sharing places as a deep link" extension) so one user can share a place with another. Photos are never included in the link.
+`TravelMemory` also encodes/decodes itself as a shared-place deep link (see the "Sharing places as a deep link" extension) so one user can share a place with another. Photos are never included in the link. `shareURL` produces a Universal Link (`https://www.thehealthclubonline.com/comebackonedayapp/add?...`) so the link falls back to the app's landing page when the recipient doesn't have the app installed yet; `init?(shareURL:)` still decodes the older `comebackoneday://add?...` custom-scheme links so ones shared before this change keep working. See "Universal Links" below for the server-side half of this.
 
 **Persistence** ([MemoryStore.swift](Comebackone day 1.2/MemoryStore.swift)): `MemoryStore` is an `ObservableObject` holding the in-memory `[TravelMemory]` array, injected app-wide via `.environmentObject` from `ContentView`. Every mutation writes the full array to `memories.json` in the Documents directory. It also migrates legacy data that very old builds stored in `UserDefaults` (with photo bytes inline) on first launch.
 
@@ -49,6 +49,13 @@ There are no shared (`.xcscheme`) schemes checked into the project — Xcode/xco
 
 - App: `com.michaeljee.Comebackone-day-1-1`
 - iCloud container: `iCloud.com.michaeljee.Comebackone-day-1-1`
-- URL scheme for shared-place deep links: `comebackoneday`
+- URL scheme for shared-place deep links (legacy, still decoded): `comebackoneday`
+- Team ID: `KG2C627Z62`
 
 Deployment target is iOS 18, iPhone-only (`TARGETED_DEVICE_FAMILY = 1`).
+
+## Universal Links
+
+Shared-place links (`TravelMemory.shareURL`) point at `https://www.thehealthclubonline.com/comebackonedayapp/add?...`, the same domain hosting the app's marketing/download landing page (`/comebackonedayapp/`). The app declares `applinks:www.thehealthclubonline.com` and `applinks:thehealthclubonline.com` in [Comebackone day 1.2.entitlements](Comebackone day 1.2/Comebackone day 1.2.entitlements) (Associated Domains).
+
+For iOS to route those links into the app instead of Safari, the domain must serve [web/apple-app-site-association](web/apple-app-site-association) — a file that is **not part of the Xcode project**, since it has to live at `https://www.thehealthclubonline.com/.well-known/apple-app-site-association` (and the same path on the bare domain) on the actual web server, served over HTTPS with no redirects. It scopes matching to `/comebackonedayapp/add*` only, so the rest of that site (the landing page itself) is unaffected. If the AASA content or the Team ID/bundle ID ever changes, update that file both here and on the live server — they'll drift silently otherwise, since nothing in this repo deploys it automatically.

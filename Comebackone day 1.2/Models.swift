@@ -186,13 +186,19 @@ extension TravelMemory {
     }
 
     static let shareScheme = "comebackoneday"
+    static let shareHosts = ["www.thehealthclubonline.com", "thehealthclubonline.com"]
+    static let sharePath = "/comebackonedayapp/add"
 
     /// A deep link another Come Back One Day user can open to import this place.
-    /// Photos are not included — links can't carry image data.
+    /// Photos are not included — links can't carry image data. This is a
+    /// Universal Link (not the older comebackoneday:// scheme) so it also works
+    /// as a plain webpage — landing on the download page — for anyone who
+    /// doesn't have the app installed yet.
     var shareURL: URL? {
         var components = URLComponents()
-        components.scheme = Self.shareScheme
-        components.host = "add"
+        components.scheme = "https"
+        components.host = Self.shareHosts[0]
+        components.path = Self.sharePath
         var items = [
             URLQueryItem(name: "name", value: name),
             URLQueryItem(name: "lat", value: String(latitude)),
@@ -216,11 +222,16 @@ extension TravelMemory {
         return components.url
     }
 
-    /// Builds a new place (fresh id, no photos) from a shared deep link.
+    /// Builds a new place (fresh id, no photos) from a shared deep link — either
+    /// the current Universal Link (https://.../comebackonedayapp/add?...) or the
+    /// older comebackoneday://add?... scheme from links shared before that existed.
     init?(shareURL url: URL) {
-        guard url.scheme == Self.shareScheme,
-              let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              components.host == "add" else { return nil }
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
+        let isLegacyScheme = url.scheme == Self.shareScheme && components.host == "add"
+        let isUniversalLink = url.scheme == "https"
+            && Self.shareHosts.contains(components.host ?? "")
+            && components.path == Self.sharePath
+        guard isLegacyScheme || isUniversalLink else { return nil }
         let query = components.queryItems ?? []
         func value(_ key: String) -> String? { query.first { $0.name == key }?.value }
         guard let name = value("name"), !name.isEmpty,

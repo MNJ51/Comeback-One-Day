@@ -1,0 +1,12 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "KG2C627Z62.com.michaeljee.Comebackone-day-1-1",
+        "appIDs": ["KG2C627Z62.com.michaeljee.Comebackone-day-1-1"],
+        "paths": ["/comebackonedayapp/add*"]
+      }
+    ]
+  }
+}

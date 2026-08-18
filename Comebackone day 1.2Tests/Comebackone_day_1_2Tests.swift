@@ -194,6 +194,43 @@ struct TravelMemoryCodingTests {
         #expect(memory.phoneCallURL == nil)
     }
 
+    @Test func shareURLIsAUniversalLinkOnTheLandingPageDomain() throws {
+        let memory = TravelMemory(
+            name: "Omilos",
+            latitude: -27.4705,
+            longitude: 153.0260,
+            category: .restaurant
+        )
+        let url = try #require(memory.shareURL)
+        #expect(url.scheme == "https")
+        #expect(url.host == "www.thehealthclubonline.com")
+        #expect(url.path == "/comebackonedayapp/add")
+    }
+
+    @Test func universalLinkImportIsMarkedReceivedFromShare() throws {
+        let url = try #require(URL(string: "https://www.thehealthclubonline.com/comebackonedayapp/add?name=Omilos&lat=-27.4705&lon=153.0260&cat=Restaurant&rating=5"))
+        let imported = try #require(TravelMemory(shareURL: url))
+        #expect(imported.name == "Omilos")
+        #expect(imported.isReceivedFromShare == true)
+    }
+
+    @Test func universalLinkImportWorksWithoutWWW() throws {
+        let url = try #require(URL(string: "https://thehealthclubonline.com/comebackonedayapp/add?name=Omilos&lat=-27.4705&lon=153.0260&cat=Restaurant&rating=5"))
+        let imported = try #require(TravelMemory(shareURL: url))
+        #expect(imported.name == "Omilos")
+    }
+
+    @Test func legacySchemeLinksStillImportAfterSwitchingToUniversalLinks() throws {
+        let url = try #require(URL(string: "comebackoneday://add?name=Omilos&lat=-27.4705&lon=153.0260&cat=Restaurant&rating=5"))
+        let imported = try #require(TravelMemory(shareURL: url))
+        #expect(imported.name == "Omilos")
+    }
+
+    @Test func unrelatedHTTPSLinksAreNotImported() throws {
+        let url = try #require(URL(string: "https://www.thehealthclubonline.com/some-other-page"))
+        #expect(TravelMemory(shareURL: url) == nil)
+    }
+
     @Test func sharedDeepLinkCarriesPhoneNumber() throws {
         let original = TravelMemory(
             name: "Omilos",
