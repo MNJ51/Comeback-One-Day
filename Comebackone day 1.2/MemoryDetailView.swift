@@ -145,6 +145,25 @@ struct MemoryDetailView: View {
                         }
                         .padding()
 
+                        VStack(spacing: 8) {
+                            Button {
+                                openTripAdvisorReview(for: memory)
+                            } label: {
+                                Label("Write a Review on TripAdvisor", systemImage: "star.bubble.fill")
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(.green.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+                                    .foregroundStyle(.green)
+                            }
+
+                            Text("Opens TripAdvisor's search for this place and copies your rating and notes so you can paste them into the review.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding(.horizontal)
+
                         Button(role: .destructive) {
                             showingDeleteConfirmation = true
                         } label: {
@@ -277,6 +296,34 @@ struct MemoryDetailView: View {
             URLQueryItem(name: "daddr", value: "\(memory.latitude),\(memory.longitude)"),
             URLQueryItem(name: "dirflg", value: "c")
         ]
+        if let url = components.url {
+            UIApplication.shared.open(url)
+        }
+    }
+
+    // TripAdvisor has no API for submitting a review, and every review is
+    // tied to the reviewer's own TripAdvisor account regardless — there's no
+    // way for this (or any) third-party app to post one on the user's behalf.
+    // The closest honest equivalent: land them on the right listing to write
+    // it themselves, with their rating/notes copied so they're not retyping.
+    private func openTripAdvisorReview(for memory: TravelMemory) {
+        var clipboardLines: [String] = []
+        if memory.rating > 0 {
+            clipboardLines.append(String(repeating: "★", count: memory.rating))
+        }
+        if !memory.notes.isEmpty {
+            clipboardLines.append(memory.notes)
+        }
+        if !clipboardLines.isEmpty {
+            UIPasteboard.general.string = clipboardLines.joined(separator: "\n\n")
+        }
+
+        var query = memory.name
+        if let address = memory.address, !address.isEmpty {
+            query += " \(address)"
+        }
+        var components = URLComponents(string: "https://www.tripadvisor.com/Search")!
+        components.queryItems = [URLQueryItem(name: "q", value: query)]
         if let url = components.url {
             UIApplication.shared.open(url)
         }
