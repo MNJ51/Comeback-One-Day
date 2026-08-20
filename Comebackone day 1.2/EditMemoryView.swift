@@ -32,6 +32,7 @@ struct EditMemoryView: View {
     @State private var website: String
     @State private var phoneNumber: String
     @State private var category: Category
+    @State private var visitStatus: VisitStatus
     @State private var dateVisited: Date
     @State private var rating: Int
     @State private var notes: String
@@ -53,6 +54,7 @@ struct EditMemoryView: View {
         _website = State(initialValue: memory.website ?? "")
         _phoneNumber = State(initialValue: memory.phoneNumber ?? "")
         _category = State(initialValue: memory.category)
+        _visitStatus = State(initialValue: memory.visitStatus)
         _dateVisited = State(initialValue: memory.dateVisited ?? Date())
         _rating = State(initialValue: memory.rating)
         _notes = State(initialValue: memory.notes)
@@ -84,7 +86,16 @@ struct EditMemoryView: View {
                     TextField("Phone (optional)", text: $phoneNumber)
                         .keyboardType(.phonePad)
 
-                    DatePicker("Date Visited", selection: $dateVisited, displayedComponents: .date)
+                    Picker("Status", selection: $visitStatus) {
+                        ForEach(VisitStatus.allCases) { status in
+                            Text(status.rawValue).tag(status)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    if visitStatus == .beenThere {
+                        DatePicker("Date Visited", selection: $dateVisited, displayedComponents: .date)
+                    }
 
                     Picker("Category", selection: $category) {
                         ForEach(Category.allCases) { cat in
@@ -262,7 +273,8 @@ struct EditMemoryView: View {
         updated.website = website.trimmedNonEmpty
         updated.phoneNumber = phoneNumber.trimmedNonEmpty
         updated.category = category
-        updated.dateVisited = dateVisited
+        updated.visitStatus = visitStatus
+        updated.dateVisited = visitStatus == .beenThere ? dateVisited : nil
         updated.rating = rating
         updated.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         updated.tripName = tripName.trimmedNonEmpty

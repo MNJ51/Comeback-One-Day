@@ -60,6 +60,16 @@ struct MemoryDetailView: View {
                                     .foregroundStyle(memory.category.color)
                                 Text(memory.category.rawValue)
                                     .foregroundStyle(.secondary)
+
+                                if memory.visitStatus == .wantToGo {
+                                    Text("Want to Go")
+                                        .font(.caption.weight(.semibold))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 3)
+                                        .background(.yellow.opacity(0.2))
+                                        .foregroundStyle(.orange)
+                                        .clipShape(Capsule())
+                                }
                             }
 
                             if let tripName = memory.tripName {

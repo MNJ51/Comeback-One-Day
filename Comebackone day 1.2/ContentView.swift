@@ -54,6 +54,12 @@ struct ContentView: View {
                 }
             }
         }
+        .task {
+            locationManager.updateMonitoredRegions(for: store.memories)
+        }
+        .onChange(of: store.memories) { _, newMemories in
+            locationManager.updateMonitoredRegions(for: newMemories)
+        }
         .onOpenURL { url in
             if let imported = TravelMemory(shareURL: url) {
                 pendingImport = imported
@@ -189,7 +195,15 @@ struct MapTabView: View {
             }
             .ignoresSafeArea()
 
-            VStack {
+            VStack(spacing: 8) {
+                if let flashback = store.memories.first(where: { $0.isOnThisDay() }) {
+                    OnThisDayBanner(memory: flashback) {
+                        selectedMemory = flashback
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                }
+
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         FilterChip(title: "All", color: .gray, isSelected: filterCategory == nil) {
@@ -234,8 +248,60 @@ struct FilterChip: View {
     }
 }
 
+/// "You saved this N years ago today" flashback, tappable to reopen the place.
+struct OnThisDayBanner: View {
+    let memory: TravelMemory
+    let action: () -> Void
+
+    private var subtitle: String {
+        guard let years = memory.yearsAgo(), years > 0 else { return "On this day" }
+        return years == 1 ? "1 year ago today" : "\(years) years ago today"
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                if let thumbnail = PhotoStore.thumbnail(for: memory.coverPhotoFilename, maxDimension: 40) {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 40, height: 40)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                } else {
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(memory.category.color)
+                        .frame(width: 40, height: 40)
+                        .background(memory.category.color.opacity(0.15), in: RoundedRectangle(cornerRadius: 8))
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(subtitle)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(memory.name)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(10)
+            .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 14))
+            .shadow(radius: 2)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct MemoryPin: View {
     let memory: TravelMemory
+
+    private var isWishlist: Bool { memory.visitStatus == .wantToGo }
 
     var body: some View {
         Group {
@@ -245,10 +311,16 @@ struct MemoryPin: View {
                     .scaledToFill()
                     .frame(width: 40, height: 40)
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(memory.category.color, lineWidth: 3))
+                    .overlay(
+                        Circle().stroke(
+                            memory.category.color,
+                            style: StrokeStyle(lineWidth: 3, dash: isWishlist ? [4, 3] : [])
+                        )
+                    )
                     .shadow(radius: 3)
             } else {
-                Image(systemName: "mappin.circle.fill")
+                // Outline pin for a wishlist place not yet visited, filled once it's been to.
+                Image(systemName: isWishlist ? "mappin.circle" : "mappin.circle.fill")
                     .foregroundStyle(memory.category.color)
                     .font(.title2)
             }

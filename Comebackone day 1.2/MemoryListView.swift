@@ -7,11 +7,14 @@ import SwiftUI
 
 struct MemoryListView: View {
     @EnvironmentObject var store: MemoryStore
+    @EnvironmentObject var locationManager: LocationManager
     @State private var selectedMemory: TravelMemory?
     @State private var searchText = ""
     @State private var filterCategory: Category?
     @State private var filterCountry: String?
     @State private var filterTrip: String?
+    @State private var filterStatus: VisitStatus?
+    @State private var showingSettings = false
 
     private static let noTripSectionTitle = "No Trip"
 
@@ -40,6 +43,10 @@ struct MemoryListView: View {
 
         if let filterTrip {
             result = result.filter { $0.tripName == filterTrip }
+        }
+
+        if let filterStatus {
+            result = result.filter { $0.visitStatus == filterStatus }
         }
 
         let query = searchText.trimmingCharacters(in: .whitespaces)
@@ -127,15 +134,33 @@ struct MemoryListView: View {
                                 }
                             }
                         }
+
+                        Picker("Status", selection: $filterStatus) {
+                            Text("All Places").tag(VisitStatus?.none)
+                            ForEach(VisitStatus.allCases) { status in
+                                Text(status.rawValue).tag(VisitStatus?.some(status))
+                            }
+                        }
                     } label: {
-                        Image(systemName: (filterCategory == nil && filterCountry == nil && filterTrip == nil)
+                        Image(systemName: (filterCategory == nil && filterCountry == nil && filterTrip == nil && filterStatus == nil)
                               ? "line.3.horizontal.decrease.circle"
                               : "line.3.horizontal.decrease.circle.fill")
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
                     }
                 }
             }
             .sheet(item: $selectedMemory) { memory in
                 MemoryDetailView(memoryID: memory.id)
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsSheet()
+                    .environmentObject(locationManager)
             }
         }
     }
@@ -143,6 +168,39 @@ struct MemoryListView: View {
     private func delete(_ offsets: IndexSet, from sectionMemories: [TravelMemory]) {
         for index in offsets {
             store.delete(sectionMemories[index])
+        }
+    }
+}
+
+private struct SettingsSheet: View {
+    @EnvironmentObject var locationManager: LocationManager
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Toggle("Notify me near wishlist places", isOn: Binding(
+                        get: { locationManager.proximityNudgesEnabled },
+                        set: { newValue in
+                            if newValue {
+                                locationManager.enableProximityNudges()
+                            } else {
+                                locationManager.disableProximityNudges()
+                            }
+                        }
+                    ))
+                } footer: {
+                    Text("Get a notification when you're near a place on your Want to Go list — even when the app isn't open. This needs Always location access and notification permission, both requested when you turn it on.")
+                }
+            }
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
         }
     }
 }
@@ -180,7 +238,15 @@ struct MemoryRow: View {
                         .foregroundStyle(memory.category.color)
                         .clipShape(Capsule())
 
-                    if let dateVisited = memory.dateVisited {
+                    if memory.visitStatus == .wantToGo {
+                        Text("Want to Go")
+                            .font(.caption.weight(.medium))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(.yellow.opacity(0.2))
+                            .foregroundStyle(.orange)
+                            .clipShape(Capsule())
+                    } else if let dateVisited = memory.dateVisited {
                         Text(dateVisited, style: .date)
                             .font(.caption)
                             .foregroundStyle(.secondary)

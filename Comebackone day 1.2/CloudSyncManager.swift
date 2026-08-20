@@ -194,6 +194,7 @@ final class CloudSyncManager {
         record["tripName"] = memory.tripName
         record["voiceNoteFilename"] = memory.voiceNoteFilename
         record["voiceNote"] = memory.voiceNoteFilename.map { CKAsset(fileURL: VoiceNoteStore.url(for: $0)) }
+        record["visitStatus"] = memory.visitStatus.rawValue
         return record
     }
 
@@ -244,7 +245,8 @@ final class CloudSyncManager {
             isReceivedFromShare: (record["isReceivedFromShare"] as? Int ?? 0) != 0,
             senderName: record["senderName"] as? String,
             tripName: record["tripName"] as? String,
-            voiceNoteFilename: voiceNoteFilename
+            voiceNoteFilename: voiceNoteFilename,
+            visitStatus: VisitStatus(rawValue: record["visitStatus"] as? String ?? "") ?? .beenThere
         )
         store?.applyRemoteSave(memory)
     }

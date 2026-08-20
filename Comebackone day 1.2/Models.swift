@@ -45,6 +45,18 @@ enum Category: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum VisitStatus: String, Codable, CaseIterable, Identifiable {
+    case beenThere = "Been There"
+    case wantToGo = "Want to Go"
+
+    var id: String { rawValue }
+
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = VisitStatus(rawValue: raw) ?? .beenThere
+    }
+}
+
 struct TravelMemory: Identifiable, Codable, Equatable {
     let id: UUID
     var name: String
@@ -70,8 +82,12 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     var tripName: String?
     /// A recorded voice memo about this place; the filename of an .m4a in VoiceNoteStore.
     var voiceNoteFilename: String?
+    /// Whether this is somewhere already visited (the app's original premise) or
+    /// a wishlist place not yet been to. Defaults to .beenThere for old data, since
+    /// that's what every place meant before this field existed.
+    var visitStatus: VisitStatus
 
-    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, website: String? = nil, phoneNumber: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil, isReceivedFromShare: Bool = false, senderName: String? = nil, tripName: String? = nil, voiceNoteFilename: String? = nil) {
+    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, website: String? = nil, phoneNumber: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil, isReceivedFromShare: Bool = false, senderName: String? = nil, tripName: String? = nil, voiceNoteFilename: String? = nil, visitStatus: VisitStatus = .beenThere) {
         self.id = id
         self.name = name
         self.latitude = latitude
@@ -89,6 +105,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         self.senderName = senderName
         self.tripName = tripName
         self.voiceNoteFilename = voiceNoteFilename
+        self.visitStatus = visitStatus
     }
 
     var coordinate: CLLocationCoordinate2D {
@@ -108,7 +125,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, website, phoneNumber, rating, notes, dateAdded, dateVisited, isReceivedFromShare, senderName, tripName, voiceNoteFilename
+        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, website, phoneNumber, rating, notes, dateAdded, dateVisited, isReceivedFromShare, senderName, tripName, voiceNoteFilename, visitStatus
     }
 
     init(from decoder: Decoder) throws {
@@ -137,6 +154,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         senderName = try container.decodeIfPresent(String.self, forKey: .senderName)
         tripName = try container.decodeIfPresent(String.self, forKey: .tripName)
         voiceNoteFilename = try container.decodeIfPresent(String.self, forKey: .voiceNoteFilename)
+        visitStatus = try container.decodeIfPresent(VisitStatus.self, forKey: .visitStatus) ?? .beenThere
     }
 
     func encode(to encoder: Encoder) throws {
@@ -158,6 +176,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         try container.encodeIfPresent(senderName, forKey: .senderName)
         try container.encodeIfPresent(tripName, forKey: .tripName)
         try container.encodeIfPresent(voiceNoteFilename, forKey: .voiceNoteFilename)
+        try container.encode(visitStatus, forKey: .visitStatus)
     }
 }
 
@@ -170,6 +189,25 @@ extension String {
 }
 
 extension TravelMemory {
+    /// True when this place was saved on this same month/day in an earlier year —
+    /// a "you were here a year ago today" flashback. Never true for something
+    /// saved earlier this same year (that's just "recent," not a flashback).
+    func isOnThisDay(relativeTo now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        let referenceDate = dateVisited ?? dateAdded
+        let nowYear = calendar.component(.year, from: now)
+        let refYear = calendar.component(.year, from: referenceDate)
+        guard refYear != nowYear else { return false }
+        return calendar.component(.month, from: referenceDate) == calendar.component(.month, from: now)
+            && calendar.component(.day, from: referenceDate) == calendar.component(.day, from: now)
+    }
+
+    /// How many years ago the reference date (dateVisited, falling back to
+    /// dateAdded) was, for "N years ago today" copy.
+    func yearsAgo(relativeTo now: Date = Date(), calendar: Calendar = .current) -> Int? {
+        let referenceDate = dateVisited ?? dateAdded
+        return calendar.dateComponents([.year], from: referenceDate, to: now).year
+    }
+
     /// The phone number as a tappable tel: URL, stripped of everything a dialer
     /// doesn't need (spaces, parens, dashes) while keeping a leading "+".
     var phoneCallURL: URL? {

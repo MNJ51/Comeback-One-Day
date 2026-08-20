@@ -277,6 +277,102 @@ struct TravelMemoryCodingTests {
         #expect(decoded == [original])
     }
 
+    @Test func missingVisitStatusDecodesToBeenThere() throws {
+        let json = """
+        [{
+            "id": "08D8A3C4-A65B-4119-876A-C7789A460D4F",
+            "name": "Old Place",
+            "latitude": -27.5,
+            "longitude": 153.0,
+            "category": "Restaurant",
+            "dateAdded": 700000000.0
+        }]
+        """
+        let memories = try JSONDecoder().decode([TravelMemory].self, from: Data(json.utf8))
+        #expect(memories[0].visitStatus == .beenThere)
+    }
+
+    @Test func visitStatusRoundTrips() throws {
+        let original = TravelMemory(
+            name: "Someday Cafe",
+            latitude: -27.4705,
+            longitude: 153.0260,
+            category: .cafe,
+            visitStatus: .wantToGo
+        )
+        let data = try JSONEncoder().encode([original])
+        let decoded = try JSONDecoder().decode([TravelMemory].self, from: data)
+        #expect(decoded[0].visitStatus == .wantToGo)
+        #expect(decoded == [original])
+    }
+
+    @Test func isOnThisDayMatchesSameMonthDayEarlierYear() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 8, day: 20, hour: 12))!
+        let lastYear = calendar.date(from: DateComponents(year: 2025, month: 8, day: 20, hour: 9))!
+
+        let memory = TravelMemory(
+            name: "Omilos",
+            latitude: -27.4705,
+            longitude: 153.0260,
+            category: .restaurant,
+            dateVisited: lastYear
+        )
+        #expect(memory.isOnThisDay(relativeTo: now, calendar: calendar) == true)
+        #expect(memory.yearsAgo(relativeTo: now, calendar: calendar) == 1)
+    }
+
+    @Test func isOnThisDayIsFalseForDifferentDay() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 8, day: 20))!
+        let differentDay = calendar.date(from: DateComponents(year: 2025, month: 8, day: 21))!
+
+        let memory = TravelMemory(
+            name: "Omilos",
+            latitude: -27.4705,
+            longitude: 153.0260,
+            category: .restaurant,
+            dateVisited: differentDay
+        )
+        #expect(memory.isOnThisDay(relativeTo: now, calendar: calendar) == false)
+    }
+
+    @Test func isOnThisDayIsFalseForSameYear() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 8, day: 20, hour: 18))!
+        let earlierToday = calendar.date(from: DateComponents(year: 2026, month: 8, day: 20, hour: 9))!
+
+        let memory = TravelMemory(
+            name: "Omilos",
+            latitude: -27.4705,
+            longitude: 153.0260,
+            category: .restaurant,
+            dateVisited: earlierToday
+        )
+        #expect(memory.isOnThisDay(relativeTo: now, calendar: calendar) == false)
+    }
+
+    @Test func isOnThisDayFallsBackToDateAddedWithoutDateVisited() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 8, day: 20))!
+        let twoYearsAgo = calendar.date(from: DateComponents(year: 2024, month: 8, day: 20))!
+
+        let memory = TravelMemory(
+            name: "Omilos",
+            latitude: -27.4705,
+            longitude: 153.0260,
+            category: .restaurant,
+            dateAdded: twoYearsAgo,
+            dateVisited: nil
+        )
+        #expect(memory.isOnThisDay(relativeTo: now, calendar: calendar) == true)
+        #expect(memory.yearsAgo(relativeTo: now, calendar: calendar) == 2)
+    }
+
     @Test func sharedDeepLinkCarriesPhoneNumber() throws {
         let original = TravelMemory(
             name: "Omilos",

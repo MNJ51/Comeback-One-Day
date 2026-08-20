@@ -56,6 +56,7 @@ struct AddMemoryView: View {
     @State private var website = ""
     @State private var phoneNumber = ""
     @State private var category = Category.restaurant
+    @State private var visitStatus = VisitStatus.beenThere
     @State private var dateVisited = Date()
     @State private var rating = 0
     @State private var notes = ""
@@ -98,7 +99,16 @@ struct AddMemoryView: View {
                     TextField("Phone (optional)", text: $phoneNumber)
                         .keyboardType(.phonePad)
 
-                    DatePicker("Date Visited", selection: $dateVisited, displayedComponents: .date)
+                    Picker("Status", selection: $visitStatus) {
+                        ForEach(VisitStatus.allCases) { status in
+                            Text(status.rawValue).tag(status)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    if visitStatus == .beenThere {
+                        DatePicker("Date Visited", selection: $dateVisited, displayedComponents: .date)
+                    }
 
                     Picker("Category", selection: $category) {
                         ForEach(Category.allCases) { cat in
@@ -374,9 +384,10 @@ struct AddMemoryView: View {
             phoneNumber: phoneNumber.trimmedNonEmpty,
             rating: rating,
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
-            dateVisited: dateVisited,
+            dateVisited: visitStatus == .beenThere ? dateVisited : nil,
             tripName: tripName.trimmedNonEmpty,
-            voiceNoteFilename: voiceNoteFilename
+            voiceNoteFilename: voiceNoteFilename,
+            visitStatus: visitStatus
         )
         store.add(newMemory)
         dismiss()
