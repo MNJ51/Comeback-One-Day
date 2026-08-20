@@ -66,8 +66,12 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     var isReceivedFromShare: Bool
     /// The sender's device name, captured when this place was imported from a shared link.
     var senderName: String?
+    /// Groups this place into a trip or city collection, e.g. "Greece 2026".
+    var tripName: String?
+    /// A recorded voice memo about this place; the filename of an .m4a in VoiceNoteStore.
+    var voiceNoteFilename: String?
 
-    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, website: String? = nil, phoneNumber: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil, isReceivedFromShare: Bool = false, senderName: String? = nil) {
+    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, website: String? = nil, phoneNumber: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil, isReceivedFromShare: Bool = false, senderName: String? = nil, tripName: String? = nil, voiceNoteFilename: String? = nil) {
         self.id = id
         self.name = name
         self.latitude = latitude
@@ -83,6 +87,8 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         self.dateVisited = dateVisited
         self.isReceivedFromShare = isReceivedFromShare
         self.senderName = senderName
+        self.tripName = tripName
+        self.voiceNoteFilename = voiceNoteFilename
     }
 
     var coordinate: CLLocationCoordinate2D {
@@ -102,7 +108,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, website, phoneNumber, rating, notes, dateAdded, dateVisited, isReceivedFromShare, senderName
+        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, website, phoneNumber, rating, notes, dateAdded, dateVisited, isReceivedFromShare, senderName, tripName, voiceNoteFilename
     }
 
     init(from decoder: Decoder) throws {
@@ -129,6 +135,8 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         dateVisited = try container.decodeIfPresent(Date.self, forKey: .dateVisited)
         isReceivedFromShare = try container.decodeIfPresent(Bool.self, forKey: .isReceivedFromShare) ?? false
         senderName = try container.decodeIfPresent(String.self, forKey: .senderName)
+        tripName = try container.decodeIfPresent(String.self, forKey: .tripName)
+        voiceNoteFilename = try container.decodeIfPresent(String.self, forKey: .voiceNoteFilename)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -148,6 +156,8 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         try container.encodeIfPresent(dateVisited, forKey: .dateVisited)
         try container.encode(isReceivedFromShare, forKey: .isReceivedFromShare)
         try container.encodeIfPresent(senderName, forKey: .senderName)
+        try container.encodeIfPresent(tripName, forKey: .tripName)
+        try container.encodeIfPresent(voiceNoteFilename, forKey: .voiceNoteFilename)
     }
 }
 

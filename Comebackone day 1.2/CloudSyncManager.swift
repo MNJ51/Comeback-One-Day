@@ -191,6 +191,9 @@ final class CloudSyncManager {
         record["photos"] = memory.photoFilenames.map { CKAsset(fileURL: PhotoStore.url(for: $0)) }
         record["isReceivedFromShare"] = memory.isReceivedFromShare ? 1 : 0
         record["senderName"] = memory.senderName
+        record["tripName"] = memory.tripName
+        record["voiceNoteFilename"] = memory.voiceNoteFilename
+        record["voiceNote"] = memory.voiceNoteFilename.map { CKAsset(fileURL: VoiceNoteStore.url(for: $0)) }
         return record
     }
 
@@ -215,6 +218,15 @@ final class CloudSyncManager {
             }
         }
 
+        let voiceNoteFilename = record["voiceNoteFilename"] as? String
+        if let voiceNoteFilename, let voiceAsset = record["voiceNote"] as? CKAsset {
+            let destination = VoiceNoteStore.url(for: voiceNoteFilename)
+            if !FileManager.default.fileExists(atPath: destination.path),
+               let source = voiceAsset.fileURL {
+                try? FileManager.default.copyItem(at: source, to: destination)
+            }
+        }
+
         let memory = TravelMemory(
             id: uuid,
             name: name,
@@ -230,7 +242,9 @@ final class CloudSyncManager {
             dateAdded: record["dateAdded"] as? Date ?? Date(),
             dateVisited: record["dateVisited"] as? Date,
             isReceivedFromShare: (record["isReceivedFromShare"] as? Int ?? 0) != 0,
-            senderName: record["senderName"] as? String
+            senderName: record["senderName"] as? String,
+            tripName: record["tripName"] as? String,
+            voiceNoteFilename: voiceNoteFilename
         )
         store?.applyRemoteSave(memory)
     }

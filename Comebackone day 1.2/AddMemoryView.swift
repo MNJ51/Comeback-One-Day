@@ -59,6 +59,8 @@ struct AddMemoryView: View {
     @State private var dateVisited = Date()
     @State private var rating = 0
     @State private var notes = ""
+    @State private var tripName = ""
+    @State private var voiceNoteFilename: String?
 
     @State private var searchText = ""
     @State private var selectedCoordinate: CLLocationCoordinate2D?
@@ -75,6 +77,11 @@ struct AddMemoryView: View {
 
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty && selectedCoordinate != nil
+    }
+
+    /// Every distinct trip name already in use, for quick-pick chips.
+    private var availableTrips: [String] {
+        Array(Set(store.memories.compactMap(\.tripName))).sorted()
     }
 
     var body: some View {
@@ -99,6 +106,26 @@ struct AddMemoryView: View {
                         }
                     }
                     .pickerStyle(.menu)
+                }
+
+                Section("Trip") {
+                    TextField("Trip or city (optional)", text: $tripName)
+
+                    if !availableTrips.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(availableTrips, id: \.self) { trip in
+                                    FilterChip(title: trip, color: .accentColor, isSelected: tripName == trip) {
+                                        tripName = (tripName == trip) ? "" : trip
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        }
+                        .listRowInsets(EdgeInsets())
+                        .padding(.horizontal)
+                        .padding(.vertical, 4)
+                    }
                 }
 
                 Section("Location") {
@@ -167,6 +194,8 @@ struct AddMemoryView: View {
 
                     TextField("What made it special?", text: $notes, axis: .vertical)
                         .lineLimit(3...6)
+
+                    VoiceNoteControl(filename: $voiceNoteFilename, externallyOwnedFilename: nil)
                 }
 
                 Section("Photos") {
@@ -192,6 +221,9 @@ struct AddMemoryView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
+                        // Nothing has been saved yet, so any voice note recorded
+                        // during this session is an orphan — clean it up.
+                        VoiceNoteStore.delete(voiceNoteFilename)
                         dismiss()
                     }
                 }
@@ -342,7 +374,9 @@ struct AddMemoryView: View {
             phoneNumber: phoneNumber.trimmedNonEmpty,
             rating: rating,
             notes: notes.trimmingCharacters(in: .whitespacesAndNewlines),
-            dateVisited: dateVisited
+            dateVisited: dateVisited,
+            tripName: tripName.trimmedNonEmpty,
+            voiceNoteFilename: voiceNoteFilename
         )
         store.add(newMemory)
         dismiss()

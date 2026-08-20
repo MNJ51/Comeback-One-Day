@@ -11,11 +11,20 @@ struct MemoryListView: View {
     @State private var searchText = ""
     @State private var filterCategory: Category?
     @State private var filterCountry: String?
+    @State private var filterTrip: String?
+
+    private static let noTripSectionTitle = "No Trip"
 
     /// Every distinct country found in the saved places' addresses, for the filter menu.
     private var availableCountries: [String] {
         let countries = store.memories.compactMap(\.country)
         return Array(Set(countries)).sorted()
+    }
+
+    /// Every distinct trip name in use, for the filter menu.
+    private var availableTrips: [String] {
+        let trips = store.memories.compactMap(\.tripName)
+        return Array(Set(trips)).sorted()
     }
 
     private var visibleMemories: [TravelMemory] {
@@ -27,6 +36,10 @@ struct MemoryListView: View {
 
         if let filterCountry {
             result = result.filter { $0.country == filterCountry }
+        }
+
+        if let filterTrip {
+            result = result.filter { $0.tripName == filterTrip }
         }
 
         let query = searchText.trimmingCharacters(in: .whitespaces)
@@ -43,6 +56,16 @@ struct MemoryListView: View {
         }
     }
 
+    /// Visible places grouped into trip/city collections, untagged places last.
+    private var groupedByTrip: [(trip: String, memories: [TravelMemory])] {
+        let groups = Dictionary(grouping: visibleMemories) { $0.tripName ?? Self.noTripSectionTitle }
+        return groups.keys.sorted { lhs, rhs in
+            if lhs == Self.noTripSectionTitle { return false }
+            if rhs == Self.noTripSectionTitle { return true }
+            return lhs < rhs
+        }.map { ($0, groups[$0] ?? []) }
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -56,15 +79,19 @@ struct MemoryListView: View {
                     ContentUnavailableView.search
                 } else {
                     List {
-                        ForEach(visibleMemories) { memory in
-                            Button(action: {
-                                selectedMemory = memory
-                            }) {
-                                MemoryRow(memory: memory)
+                        ForEach(groupedByTrip, id: \.trip) { group in
+                            Section(group.trip) {
+                                ForEach(group.memories) { memory in
+                                    Button(action: {
+                                        selectedMemory = memory
+                                    }) {
+                                        MemoryRow(memory: memory)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                .onDelete { offsets in delete(offsets, from: group.memories) }
                             }
-                            .buttonStyle(.plain)
                         }
-                        .onDelete(perform: delete)
                     }
                 }
             }
@@ -91,8 +118,17 @@ struct MemoryListView: View {
                                 }
                             }
                         }
+
+                        if !availableTrips.isEmpty {
+                            Picker("Trip", selection: $filterTrip) {
+                                Text("All Trips").tag(String?.none)
+                                ForEach(availableTrips, id: \.self) { trip in
+                                    Text(trip).tag(String?.some(trip))
+                                }
+                            }
+                        }
                     } label: {
-                        Image(systemName: (filterCategory == nil && filterCountry == nil)
+                        Image(systemName: (filterCategory == nil && filterCountry == nil && filterTrip == nil)
                               ? "line.3.horizontal.decrease.circle"
                               : "line.3.horizontal.decrease.circle.fill")
                     }
@@ -104,10 +140,9 @@ struct MemoryListView: View {
         }
     }
 
-    private func delete(at offsets: IndexSet) {
-        let visible = visibleMemories
+    private func delete(_ offsets: IndexSet, from sectionMemories: [TravelMemory]) {
         for index in offsets {
-            store.delete(visible[index])
+            store.delete(sectionMemories[index])
         }
     }
 }

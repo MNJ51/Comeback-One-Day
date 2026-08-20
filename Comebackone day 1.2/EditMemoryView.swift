@@ -36,6 +36,8 @@ struct EditMemoryView: View {
     @State private var rating: Int
     @State private var notes: String
     @State private var photos: [EditablePhoto]
+    @State private var tripName: String
+    @State private var voiceNoteFilename: String?
 
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var showingCamera = false
@@ -55,10 +57,17 @@ struct EditMemoryView: View {
         _rating = State(initialValue: memory.rating)
         _notes = State(initialValue: memory.notes)
         _photos = State(initialValue: memory.photoFilenames.map { EditablePhoto(filename: $0, data: nil) })
+        _tripName = State(initialValue: memory.tripName ?? "")
+        _voiceNoteFilename = State(initialValue: memory.voiceNoteFilename)
     }
 
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// Every distinct trip name already in use, for quick-pick chips.
+    private var availableTrips: [String] {
+        Array(Set(store.memories.compactMap(\.tripName))).sorted()
     }
 
     var body: some View {
@@ -85,6 +94,26 @@ struct EditMemoryView: View {
                     .pickerStyle(.menu)
                 }
 
+                Section("Trip") {
+                    TextField("Trip or city (optional)", text: $tripName)
+
+                    if !availableTrips.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(availableTrips, id: \.self) { trip in
+                                    FilterChip(title: trip, color: .accentColor, isSelected: tripName == trip) {
+                                        tripName = (tripName == trip) ? "" : trip
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        }
+                        .listRowInsets(EdgeInsets())
+                        .padding(.horizontal)
+                        .padding(.vertical, 4)
+                    }
+                }
+
                 Section("Rating & Notes") {
                     HStack {
                         Text("Rating")
@@ -94,6 +123,8 @@ struct EditMemoryView: View {
 
                     TextField("What made it special?", text: $notes, axis: .vertical)
                         .lineLimit(3...6)
+
+                    VoiceNoteControl(filename: $voiceNoteFilename, externallyOwnedFilename: memory.voiceNoteFilename)
                 }
 
                 Section("Photos") {
@@ -138,6 +169,12 @@ struct EditMemoryView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
+                        // Only clean up if this session recorded a *new* voice note —
+                        // the originally-saved file (if unchanged, or just deleted in
+                        // this session) must survive a cancel untouched.
+                        if voiceNoteFilename != memory.voiceNoteFilename, let voiceNoteFilename {
+                            VoiceNoteStore.delete(voiceNoteFilename)
+                        }
                         dismiss()
                     }
                 }
@@ -228,6 +265,13 @@ struct EditMemoryView: View {
         updated.dateVisited = dateVisited
         updated.rating = rating
         updated.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
+        updated.tripName = tripName.trimmedNonEmpty
+
+        // The old voice note file, if it was replaced or removed this session.
+        if voiceNoteFilename != memory.voiceNoteFilename, let oldFilename = memory.voiceNoteFilename {
+            VoiceNoteStore.delete(oldFilename)
+        }
+        updated.voiceNoteFilename = voiceNoteFilename
 
         // Remove files for photos the user deleted in this session.
         let keptFilenames = Set(photos.compactMap(\.filename))

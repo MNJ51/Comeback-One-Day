@@ -231,6 +231,52 @@ struct TravelMemoryCodingTests {
         #expect(TravelMemory(shareURL: url) == nil)
     }
 
+    @Test func missingTripNameDecodesToNil() throws {
+        let json = """
+        [{
+            "id": "08D8A3C4-A65B-4119-876A-C7789A460D4F",
+            "name": "Old Place",
+            "latitude": -27.5,
+            "longitude": 153.0,
+            "category": "Restaurant",
+            "dateAdded": 700000000.0
+        }]
+        """
+        let memories = try JSONDecoder().decode([TravelMemory].self, from: Data(json.utf8))
+        #expect(memories[0].tripName == nil)
+    }
+
+    @Test func missingVoiceNoteFilenameDecodesToNil() throws {
+        let json = """
+        [{
+            "id": "08D8A3C4-A65B-4119-876A-C7789A460D4F",
+            "name": "Old Place",
+            "latitude": -27.5,
+            "longitude": 153.0,
+            "category": "Restaurant",
+            "dateAdded": 700000000.0
+        }]
+        """
+        let memories = try JSONDecoder().decode([TravelMemory].self, from: Data(json.utf8))
+        #expect(memories[0].voiceNoteFilename == nil)
+    }
+
+    @Test func tripNameAndVoiceNoteFilenameRoundTrip() throws {
+        let original = TravelMemory(
+            name: "Omilos",
+            latitude: -27.4705,
+            longitude: 153.0260,
+            category: .restaurant,
+            tripName: "Greece 2026",
+            voiceNoteFilename: "abc123.m4a"
+        )
+        let data = try JSONEncoder().encode([original])
+        let decoded = try JSONDecoder().decode([TravelMemory].self, from: data)
+        #expect(decoded[0].tripName == "Greece 2026")
+        #expect(decoded[0].voiceNoteFilename == "abc123.m4a")
+        #expect(decoded == [original])
+    }
+
     @Test func sharedDeepLinkCarriesPhoneNumber() throws {
         let original = TravelMemory(
             name: "Omilos",

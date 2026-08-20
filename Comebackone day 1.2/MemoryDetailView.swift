@@ -62,6 +62,15 @@ struct MemoryDetailView: View {
                                     .foregroundStyle(.secondary)
                             }
 
+                            if let tripName = memory.tripName {
+                                HStack {
+                                    Image(systemName: "airplane")
+                                        .foregroundStyle(Color.accentColor)
+                                    Text(tripName)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
                             if memory.isReceivedFromShare, let senderName = memory.senderName {
                                 HStack {
                                     Image(systemName: "person.crop.circle.fill")
@@ -114,6 +123,12 @@ struct MemoryDetailView: View {
                                 Text(memory.notes)
                                     .padding(12)
                                     .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+                            }
+
+                            if let voiceNoteFilename = memory.voiceNoteFilename {
+                                VoiceNotePlaybackRow(filename: voiceNoteFilename)
+                                    .padding(12)
                                     .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
                             }
                         }
@@ -339,6 +354,44 @@ struct ShareSheet: UIViewControllerRepresentable {
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+/// Play/pause control with a scrubber-free progress readout for a saved voice note.
+struct VoiceNotePlaybackRow: View {
+    let filename: String
+    @StateObject private var player = VoiceNotePlayer()
+
+    var body: some View {
+        HStack {
+            Button {
+                player.load(filename: filename)
+                player.togglePlayback()
+            } label: {
+                Image(systemName: player.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.title)
+                    .foregroundStyle(Color.accentColor)
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Voice Note")
+                    .font(.subheadline.weight(.medium))
+                Text(formattedTime)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+
+            Spacer()
+        }
+        .onAppear { player.load(filename: filename) }
+    }
+
+    private var formattedTime: String {
+        let time = player.isPlaying || player.currentTime > 0 ? player.currentTime : player.duration
+        let seconds = Int(time.rounded())
+        return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
 }
 
 struct DirectionButton: View {

@@ -41,6 +41,7 @@ class MemoryStore: ObservableObject {
 
     func delete(_ memory: TravelMemory) {
         PhotoStore.delete(memory.photoFilenames)
+        VoiceNoteStore.delete(memory.voiceNoteFilename)
         memories.removeAll { $0.id == memory.id }
         sync?.queueDelete(memory.id)
     }
@@ -61,6 +62,9 @@ class MemoryStore: ObservableObject {
         if let index = memories.firstIndex(where: { $0.id == memory.id }) {
             let removedPhotos = memories[index].photoFilenames.filter { !memory.photoFilenames.contains($0) }
             PhotoStore.delete(removedPhotos)
+            if let oldVoiceNote = memories[index].voiceNoteFilename, oldVoiceNote != memory.voiceNoteFilename {
+                VoiceNoteStore.delete(oldVoiceNote)
+            }
             memories[index] = memory
         } else {
             memories.append(memory)
@@ -70,6 +74,7 @@ class MemoryStore: ObservableObject {
     func applyRemoteDelete(id: UUID) {
         if let existing = memories.first(where: { $0.id == id }) {
             PhotoStore.delete(existing.photoFilenames)
+            VoiceNoteStore.delete(existing.voiceNoteFilename)
             memories.removeAll { $0.id == id }
         }
     }
