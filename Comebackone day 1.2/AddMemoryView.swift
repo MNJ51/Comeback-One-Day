@@ -6,6 +6,7 @@
 import SwiftUI
 import MapKit
 import PhotosUI
+import ImageIO
 
 /// A photo chosen for a memory but not yet written to disk.
 struct PickedPhoto: Identifiable, Equatable {
@@ -69,6 +70,9 @@ struct AddMemoryView: View {
     @State private var showingCamera = false
     @State private var capturedImage: UIImage?
 
+    @State private var geoPhotoItem: PhotosPickerItem?
+    @State private var showingNoPhotoLocationAlert = false
+
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty && selectedCoordinate != nil
     }
@@ -119,6 +123,10 @@ struct AddMemoryView: View {
                         Label("Use Current Location", systemImage: "location.fill")
                     }
                     .disabled(locationManager.currentLocation == nil)
+
+                    PhotosPicker(selection: $geoPhotoItem, matching: .images) {
+                        Label("Use a Photo's Location", systemImage: "location.viewfinder")
+                    }
 
                     if locationManager.isDenied {
                         Text("Location access is off. Enable it in Settings to use your current location.")
@@ -222,6 +230,18 @@ struct AddMemoryView: View {
                     capturedImage = nil
                 }
             }
+            .onChange(of: geoPhotoItem) { _, newValue in
+                guard let newValue else { return }
+                Task {
+                    await useLocation(from: newValue)
+                    geoPhotoItem = nil
+                }
+            }
+            .alert("No Location Found", isPresented: $showingNoPhotoLocationAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("That photo doesn't have location data attached. This usually happens with screenshots or photos where Location Services was off.")
+            }
         }
     }
 
@@ -255,6 +275,55 @@ struct AddMemoryView: View {
         Task {
             selectedAddress = await LocationSearchService.address(for: location)
         }
+    }
+
+    /// Reads a picked photo's embedded GPS EXIF data and uses it to fill in
+    /// the location — for a place the user photographed but forgot to save
+    /// at the time. Also adds the photo itself, since it's a record of the
+    /// place, and backfills the visit date from when the photo was taken.
+    private func useLocation(from item: PhotosPickerItem) async {
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let geoData = Self.extractGeoData(from: data) else {
+            showingNoPhotoLocationAlert = true
+            return
+        }
+        selectedCoordinate = geoData.coordinate
+        selectedPlaceLabel = "Photo location"
+        if let dateTaken = geoData.dateTaken {
+            dateVisited = dateTaken
+        }
+        pickedPhotos.append(PickedPhoto(data: data))
+        selectedAddress = await LocationSearchService.address(for: geoData.coordinate)
+    }
+
+    private struct PhotoGeoData {
+        let coordinate: CLLocationCoordinate2D
+        let dateTaken: Date?
+    }
+
+    private static func extractGeoData(from data: Data) -> PhotoGeoData? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let gps = properties[kCGImagePropertyGPSDictionary] as? [CFString: Any],
+              var latitude = gps[kCGImagePropertyGPSLatitude] as? Double,
+              var longitude = gps[kCGImagePropertyGPSLongitude] as? Double else {
+            return nil
+        }
+        if (gps[kCGImagePropertyGPSLatitudeRef] as? String) == "S" { latitude = -latitude }
+        if (gps[kCGImagePropertyGPSLongitudeRef] as? String) == "W" { longitude = -longitude }
+
+        var dateTaken: Date?
+        if let exif = properties[kCGImagePropertyExifDictionary] as? [CFString: Any],
+           let dateString = exif[kCGImagePropertyExifDateTimeOriginal] as? String {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy:MM:dd HH:mm:ss"
+            dateTaken = formatter.date(from: dateString)
+        }
+
+        return PhotoGeoData(
+            coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
+            dateTaken: dateTaken
+        )
     }
 
     private func saveMemory() {
