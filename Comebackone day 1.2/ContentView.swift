@@ -16,6 +16,7 @@ enum AppTab {
 struct ContentView: View {
     @StateObject private var store = MemoryStore()
     @StateObject private var locationManager = LocationManager()
+    @StateObject private var subscriptionManager = SubscriptionManager()
     @Environment(\.scenePhase) private var scenePhase
     @State private var pendingImport: TravelMemory?
     @State private var selectedTab: AppTab = .map
@@ -47,6 +48,7 @@ struct ContentView: View {
         }
         .environmentObject(store)
         .environmentObject(locationManager)
+        .environmentObject(subscriptionManager)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task {

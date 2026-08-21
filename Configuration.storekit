@@ -1,0 +1,91 @@
+{
+  "identifier" : "04415B1E-7051-424A-BDB5-FCA7397A8890",
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "50E094EE",
+      "localizations" : [],
+      "name" : "Itinerary Plus",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "2.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "EB9C9A99",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlock auto-generated day itineraries with vibe-based planning and a surprise Mystery Stop.",
+              "displayName" : "Itinerary Plus",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.michaeljee.Comebackone-day-1-1.itineraryplus.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Itinerary Plus Monthly",
+          "subscriptionGroupID" : "50E094EE",
+          "type" : "RecurringSubscription",
+          "win_back_offers" : []
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

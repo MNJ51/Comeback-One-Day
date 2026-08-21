@@ -146,6 +146,9 @@ struct MemoryListView: View {
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
+                    ItineraryButton()
+                }
+                ToolbarItem(placement: .primaryAction) {
                     SettingsButton()
                 }
             }
