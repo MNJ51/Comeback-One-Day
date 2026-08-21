@@ -7,14 +7,12 @@ import SwiftUI
 
 struct MemoryListView: View {
     @EnvironmentObject var store: MemoryStore
-    @EnvironmentObject var locationManager: LocationManager
     @State private var selectedMemory: TravelMemory?
     @State private var searchText = ""
     @State private var filterCategory: Category?
     @State private var filterCountry: String?
     @State private var filterTrip: String?
     @State private var filterStatus: VisitStatus?
-    @State private var showingSettings = false
 
     private static let noTripSectionTitle = "No Trip"
 
@@ -148,19 +146,11 @@ struct MemoryListView: View {
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showingSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                    }
+                    SettingsButton()
                 }
             }
             .sheet(item: $selectedMemory) { memory in
                 MemoryDetailView(memoryID: memory.id)
-            }
-            .sheet(isPresented: $showingSettings) {
-                SettingsSheet()
-                    .environmentObject(locationManager)
             }
         }
     }
@@ -168,6 +158,27 @@ struct MemoryListView: View {
     private func delete(_ offsets: IndexSet, from sectionMemories: [TravelMemory]) {
         for index in offsets {
             store.delete(sectionMemories[index])
+        }
+    }
+}
+
+/// Isolated in its own view so subscribing to LocationManager (which republishes
+/// on every GPS update once nudges are on) only invalidates this tiny button,
+/// not the whole Places list — that coupling was causing the list to reset its
+/// scroll position mid-scroll whenever a location update landed.
+private struct SettingsButton: View {
+    @EnvironmentObject var locationManager: LocationManager
+    @State private var showingSettings = false
+
+    var body: some View {
+        Button {
+            showingSettings = true
+        } label: {
+            Image(systemName: "gearshape")
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsSheet()
+                .environmentObject(locationManager)
         }
     }
 }
