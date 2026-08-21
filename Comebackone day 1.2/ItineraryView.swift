@@ -150,6 +150,7 @@ struct ItineraryPlannerView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var vibe: ItineraryVibe = .relaxed
+    @State private var glutenFreeOnly = false
     @State private var stops: [ItineraryStop] = []
     @State private var hasGenerated = false
 
@@ -197,8 +198,14 @@ struct ItineraryPlannerView: View {
             }
 
             Section {
+                Toggle("Gluten Free Restaurants Only", isOn: $glutenFreeOnly)
+            } footer: {
+                Text("Only include restaurants, cafes, bars, and markets marked as having gluten-free options.")
+            }
+
+            Section {
                 Button {
-                    stops = ItineraryPlanner.generate(from: store.memories, vibe: vibe, origin: origin)
+                    stops = ItineraryPlanner.generate(from: store.memories, vibe: vibe, origin: origin, glutenFreeOnly: glutenFreeOnly)
                     hasGenerated = true
                 } label: {
                     Text("Generate Itinerary")

@@ -307,6 +307,35 @@ struct TravelMemoryCodingTests {
         #expect(decoded == [original])
     }
 
+    @Test func missingIsGlutenFreeDecodesToFalse() throws {
+        let json = """
+        [{
+            "id": "08D8A3C4-A65B-4119-876A-C7789A460D4F",
+            "name": "Old Place",
+            "latitude": -27.5,
+            "longitude": 153.0,
+            "category": "Restaurant",
+            "dateAdded": 700000000.0
+        }]
+        """
+        let memories = try JSONDecoder().decode([TravelMemory].self, from: Data(json.utf8))
+        #expect(memories[0].isGlutenFree == false)
+    }
+
+    @Test func isGlutenFreeRoundTrips() throws {
+        let original = TravelMemory(
+            name: "Celiac-Friendly Bistro",
+            latitude: -27.4705,
+            longitude: 153.0260,
+            category: .restaurant,
+            isGlutenFree: true
+        )
+        let data = try JSONEncoder().encode([original])
+        let decoded = try JSONDecoder().decode([TravelMemory].self, from: data)
+        #expect(decoded[0].isGlutenFree == true)
+        #expect(decoded == [original])
+    }
+
     @Test func isOnThisDayMatchesSameMonthDayEarlierYear() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
@@ -401,8 +430,8 @@ private struct DeterministicRNG: RandomNumberGenerator {
 struct ItineraryPlannerTests {
     let origin = CLLocationCoordinate2D(latitude: 0, longitude: 0)
 
-    private func place(_ name: String, lon: Double, category: Comebackone_day_1_2.Category = .cafe, rating: Int = 3, status: VisitStatus = .beenThere) -> TravelMemory {
-        TravelMemory(name: name, latitude: 0, longitude: lon, category: category, rating: rating, visitStatus: status)
+    private func place(_ name: String, lon: Double, category: Comebackone_day_1_2.Category = .cafe, rating: Int = 3, status: VisitStatus = .beenThere, isGlutenFree: Bool = false) -> TravelMemory {
+        TravelMemory(name: name, latitude: 0, longitude: lon, category: category, rating: rating, visitStatus: status, isGlutenFree: isGlutenFree)
     }
 
     @Test func generateReturnsEmptyForNoMemories() {
@@ -489,5 +518,32 @@ struct ItineraryPlannerTests {
     @Test func vibeWeightsFavorMatchingCategories() {
         #expect(ItineraryVibe.foodie.weight(for: .restaurant) > ItineraryVibe.foodie.weight(for: .hotel))
         #expect(ItineraryVibe.adventure.weight(for: .location) > ItineraryVibe.adventure.weight(for: .cafe))
+    }
+
+    @Test func glutenFreeOnlyExcludesNonGlutenFreeFoodPlaces() {
+        let glutenFreeCafe = place("GF Cafe", lon: 0.005, category: .cafe, isGlutenFree: true)
+        let regularCafe = place("Regular Cafe", lon: 0.006, category: .cafe, isGlutenFree: false)
+
+        let stops = ItineraryPlanner.generate(from: [glutenFreeCafe, regularCafe], vibe: .relaxed, origin: origin, stopCount: 3, glutenFreeOnly: true)
+        let names = stops.filter { !$0.isMysteryStop }.map(\.memory.name)
+        #expect(names == ["GF Cafe"])
+    }
+
+    @Test func glutenFreeOnlyNeverExcludesNonFoodCategories() {
+        let hotel = place("Hotel", lon: 0.005, category: .hotel, isGlutenFree: false)
+        let location = place("Location", lon: 0.006, category: .location, isGlutenFree: false)
+
+        let stops = ItineraryPlanner.generate(from: [hotel, location], vibe: .relaxed, origin: origin, stopCount: 3, glutenFreeOnly: true)
+        let names = Set(stops.filter { !$0.isMysteryStop }.map(\.memory.name))
+        #expect(names == ["Hotel", "Location"])
+    }
+
+    @Test func glutenFreeOnlyOffIncludesEverything() {
+        let glutenFreeCafe = place("GF Cafe", lon: 0.005, category: .cafe, isGlutenFree: true)
+        let regularCafe = place("Regular Cafe", lon: 0.006, category: .cafe, isGlutenFree: false)
+
+        let stops = ItineraryPlanner.generate(from: [glutenFreeCafe, regularCafe], vibe: .relaxed, origin: origin, stopCount: 3, glutenFreeOnly: false)
+        let names = Set(stops.filter { !$0.isMysteryStop }.map(\.memory.name))
+        #expect(names == ["GF Cafe", "Regular Cafe"])
     }
 }

@@ -39,6 +39,14 @@ enum Category: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// Places where a "gluten-free options" flag is meaningful to ask about.
+    var isFoodRelated: Bool {
+        switch self {
+        case .restaurant, .cafe, .bar, .foodMarket: return true
+        case .hotel, .location: return false
+        }
+    }
+
     init(from decoder: Decoder) throws {
         let raw = try decoder.singleValueContainer().decode(String.self)
         self = Category(rawValue: raw) ?? .location
@@ -86,8 +94,11 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     /// a wishlist place not yet been to. Defaults to .beenThere for old data, since
     /// that's what every place meant before this field existed.
     var visitStatus: VisitStatus
+    /// Whether this place has gluten-free options — used to filter restaurants
+    /// when generating an itinerary, not shown as a separate map category.
+    var isGlutenFree: Bool
 
-    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, website: String? = nil, phoneNumber: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil, isReceivedFromShare: Bool = false, senderName: String? = nil, tripName: String? = nil, voiceNoteFilename: String? = nil, visitStatus: VisitStatus = .beenThere) {
+    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, website: String? = nil, phoneNumber: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil, isReceivedFromShare: Bool = false, senderName: String? = nil, tripName: String? = nil, voiceNoteFilename: String? = nil, visitStatus: VisitStatus = .beenThere, isGlutenFree: Bool = false) {
         self.id = id
         self.name = name
         self.latitude = latitude
@@ -106,6 +117,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         self.tripName = tripName
         self.voiceNoteFilename = voiceNoteFilename
         self.visitStatus = visitStatus
+        self.isGlutenFree = isGlutenFree
     }
 
     var coordinate: CLLocationCoordinate2D {
@@ -125,7 +137,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, website, phoneNumber, rating, notes, dateAdded, dateVisited, isReceivedFromShare, senderName, tripName, voiceNoteFilename, visitStatus
+        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, website, phoneNumber, rating, notes, dateAdded, dateVisited, isReceivedFromShare, senderName, tripName, voiceNoteFilename, visitStatus, isGlutenFree
     }
 
     init(from decoder: Decoder) throws {
@@ -155,6 +167,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         tripName = try container.decodeIfPresent(String.self, forKey: .tripName)
         voiceNoteFilename = try container.decodeIfPresent(String.self, forKey: .voiceNoteFilename)
         visitStatus = try container.decodeIfPresent(VisitStatus.self, forKey: .visitStatus) ?? .beenThere
+        isGlutenFree = try container.decodeIfPresent(Bool.self, forKey: .isGlutenFree) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -177,6 +190,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         try container.encodeIfPresent(tripName, forKey: .tripName)
         try container.encodeIfPresent(voiceNoteFilename, forKey: .voiceNoteFilename)
         try container.encode(visitStatus, forKey: .visitStatus)
+        try container.encode(isGlutenFree, forKey: .isGlutenFree)
     }
 }
 

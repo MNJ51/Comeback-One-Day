@@ -85,6 +85,7 @@ struct AddMemoryView: View {
     @State private var phoneNumber = ""
     @State private var category = Category.restaurant
     @State private var visitStatus = VisitStatus.beenThere
+    @State private var isGlutenFree = false
     @State private var dateVisited = Date()
     @State private var rating = 0
     @State private var notes = ""
@@ -246,6 +247,10 @@ struct AddMemoryView: View {
             }
         }
         .pickerStyle(.menu)
+
+        if category.isFoodRelated {
+            Toggle("Gluten Free Options", isOn: $isGlutenFree)
+        }
     }
 
     @ViewBuilder
@@ -505,7 +510,8 @@ struct AddMemoryView: View {
             dateVisited: visitStatus == .beenThere ? dateVisited : nil,
             tripName: tripName.trimmedNonEmpty,
             voiceNoteFilename: voiceNoteFilename,
-            visitStatus: visitStatus
+            visitStatus: visitStatus,
+            isGlutenFree: category.isFoodRelated && isGlutenFree
         )
         store.add(newMemory)
         dismiss()

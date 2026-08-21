@@ -33,6 +33,7 @@ struct EditMemoryView: View {
     @State private var phoneNumber: String
     @State private var category: Category
     @State private var visitStatus: VisitStatus
+    @State private var isGlutenFree: Bool
     @State private var dateVisited: Date
     @State private var rating: Int
     @State private var notes: String
@@ -55,6 +56,7 @@ struct EditMemoryView: View {
         _phoneNumber = State(initialValue: memory.phoneNumber ?? "")
         _category = State(initialValue: memory.category)
         _visitStatus = State(initialValue: memory.visitStatus)
+        _isGlutenFree = State(initialValue: memory.isGlutenFree)
         _dateVisited = State(initialValue: memory.dateVisited ?? Date())
         _rating = State(initialValue: memory.rating)
         _notes = State(initialValue: memory.notes)
@@ -103,6 +105,10 @@ struct EditMemoryView: View {
                         }
                     }
                     .pickerStyle(.menu)
+
+                    if category.isFoodRelated {
+                        Toggle("Gluten Free Options", isOn: $isGlutenFree)
+                    }
                 }
 
                 Section("Trip") {
@@ -274,6 +280,7 @@ struct EditMemoryView: View {
         updated.phoneNumber = phoneNumber.trimmedNonEmpty
         updated.category = category
         updated.visitStatus = visitStatus
+        updated.isGlutenFree = category.isFoodRelated && isGlutenFree
         updated.dateVisited = visitStatus == .beenThere ? dateVisited : nil
         updated.rating = rating
         updated.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)

@@ -67,9 +67,11 @@ enum ItineraryPlanner {
         vibe: ItineraryVibe,
         origin: CLLocationCoordinate2D,
         stopCount: Int = 4,
+        glutenFreeOnly: Bool = false,
         using rng: inout RNG
     ) -> [ItineraryStop] {
-        guard !memories.isEmpty, stopCount > 0 else { return [] }
+        let eligible = filterGlutenFree(memories, glutenFreeOnly: glutenFreeOnly)
+        guard !eligible.isEmpty, stopCount > 0 else { return [] }
 
         let originLocation = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
 
@@ -81,7 +83,7 @@ enum ItineraryPlanner {
             return vibeWeight + ratingBoost - distancePenalty
         }
 
-        let ranked = memories.sorted { score($0) > score($1) }
+        let ranked = eligible.sorted { score($0) > score($1) }
         let picks = Array(ranked.prefix(stopCount))
 
         // Route the picks with a simple nearest-neighbor walk from origin —
@@ -98,7 +100,7 @@ enum ItineraryPlanner {
 
         var stops = route.map { ItineraryStop(memory: $0, isMysteryStop: false) }
 
-        if let mystery = mysteryCandidate(excluding: route, in: memories, vibe: vibe, origin: origin, using: &rng) {
+        if let mystery = mysteryCandidate(excluding: route, in: eligible, vibe: vibe, origin: origin, using: &rng) {
             stops.append(ItineraryStop(memory: mystery, isMysteryStop: true))
         }
 
@@ -109,10 +111,20 @@ enum ItineraryPlanner {
         from memories: [TravelMemory],
         vibe: ItineraryVibe,
         origin: CLLocationCoordinate2D,
-        stopCount: Int = 4
+        stopCount: Int = 4,
+        glutenFreeOnly: Bool = false
     ) -> [ItineraryStop] {
         var rng = SystemRandomNumberGenerator()
-        return generate(from: memories, vibe: vibe, origin: origin, stopCount: stopCount, using: &rng)
+        return generate(from: memories, vibe: vibe, origin: origin, stopCount: stopCount, glutenFreeOnly: glutenFreeOnly, using: &rng)
+    }
+
+    /// Keeps every non-food place as-is; when `glutenFreeOnly` is on, food-related
+    /// places (restaurants, cafes, bars, markets) are kept only if flagged
+    /// gluten-free. A place that isn't food-related has nothing to filter on, so
+    /// it's never excluded by this option.
+    private static func filterGlutenFree(_ memories: [TravelMemory], glutenFreeOnly: Bool) -> [TravelMemory] {
+        guard glutenFreeOnly else { return memories }
+        return memories.filter { !$0.category.isFoodRelated || $0.isGlutenFree }
     }
 
     /// The pool a Mystery Stop can be drawn from: wishlist places not already

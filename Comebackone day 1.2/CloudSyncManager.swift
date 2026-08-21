@@ -195,6 +195,7 @@ final class CloudSyncManager {
         record["voiceNoteFilename"] = memory.voiceNoteFilename
         record["voiceNote"] = memory.voiceNoteFilename.map { CKAsset(fileURL: VoiceNoteStore.url(for: $0)) }
         record["visitStatus"] = memory.visitStatus.rawValue
+        record["isGlutenFree"] = memory.isGlutenFree ? 1 : 0
         return record
     }
 
@@ -246,7 +247,8 @@ final class CloudSyncManager {
             senderName: record["senderName"] as? String,
             tripName: record["tripName"] as? String,
             voiceNoteFilename: voiceNoteFilename,
-            visitStatus: VisitStatus(rawValue: record["visitStatus"] as? String ?? "") ?? .beenThere
+            visitStatus: VisitStatus(rawValue: record["visitStatus"] as? String ?? "") ?? .beenThere,
+            isGlutenFree: (record["isGlutenFree"] as? Int ?? 0) != 0
         )
         store?.applyRemoteSave(memory)
     }
