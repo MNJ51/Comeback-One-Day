@@ -46,6 +46,34 @@ struct PhotoStrip: View {
     }
 }
 
+/// The chosen location's label, address, and a pinch-to-zoom/pannable map preview.
+struct SelectedLocationPreview: View {
+    let coordinate: CLLocationCoordinate2D
+    let placeLabel: String?
+    let address: String?
+    let markerTitle: String
+    @Binding var cameraPosition: MapCameraPosition
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(placeLabel ?? "Selected location", systemImage: "mappin.circle.fill")
+                .foregroundStyle(.green)
+
+            if let address {
+                Text(address)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Map(position: $cameraPosition) {
+                Marker(markerTitle, coordinate: coordinate)
+            }
+            .frame(height: 150)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+    }
+}
+
 struct AddMemoryView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var store: MemoryStore
@@ -67,6 +95,7 @@ struct AddMemoryView: View {
     @State private var selectedCoordinate: CLLocationCoordinate2D?
     @State private var selectedPlaceLabel: String?
     @State private var selectedAddress: String?
+    @State private var previewCameraPosition: MapCameraPosition = .automatic
 
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var pickedPhotos: [PickedPhoto] = []
@@ -75,6 +104,17 @@ struct AddMemoryView: View {
 
     @State private var geoPhotoItem: PhotosPickerItem?
     @State private var showingNoPhotoLocationAlert = false
+    @State private var suggestedPlace: SuggestedPlace?
+
+    /// A business found near a raw coordinate (e.g. from a photo's GPS EXIF),
+    /// offered as a "is this it?" suggestion rather than filled in blindly.
+    private struct SuggestedPlace {
+        let name: String
+        let coordinate: CLLocationCoordinate2D
+        let address: String?
+        let website: String?
+        let phoneNumber: String?
+    }
 
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty && selectedCoordinate != nil
@@ -89,161 +129,28 @@ struct AddMemoryView: View {
         NavigationStack {
             Form {
                 Section("Place Details") {
-                    TextField("Name", text: $name)
-
-                    TextField("Website (optional)", text: $website)
-                        .keyboardType(.URL)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-
-                    TextField("Phone (optional)", text: $phoneNumber)
-                        .keyboardType(.phonePad)
-
-                    Picker("Status", selection: $visitStatus) {
-                        ForEach(VisitStatus.allCases) { status in
-                            Text(status.rawValue).tag(status)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    if visitStatus == .beenThere {
-                        DatePicker("Date Visited", selection: $dateVisited, displayedComponents: .date)
-                    }
-
-                    Picker("Category", selection: $category) {
-                        ForEach(Category.allCases) { cat in
-                            Label(cat.rawValue, systemImage: cat.icon).tag(cat)
-                        }
-                    }
-                    .pickerStyle(.menu)
+                    placeDetailsSectionContent
                 }
 
                 Section("Trip") {
-                    TextField("Trip or city (optional)", text: $tripName)
-
-                    if !availableTrips.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 8) {
-                                ForEach(availableTrips, id: \.self) { trip in
-                                    FilterChip(title: trip, color: .accentColor, isSelected: tripName == trip) {
-                                        tripName = (tripName == trip) ? "" : trip
-                                    }
-                                }
-                            }
-                            .padding(.vertical, 2)
-                        }
-                        .listRowInsets(EdgeInsets())
-                        .padding(.horizontal)
-                        .padding(.vertical, 4)
-                    }
+                    tripSectionContent
                 }
 
                 Section("Location") {
-                    TextField("Search for a place or address", text: $searchText)
-                        .autocorrectionDisabled()
-
-                    ForEach(searchService.results.prefix(5), id: \.self) { result in
-                        Button(action: {
-                            select(result)
-                        }) {
-                            VStack(alignment: .leading) {
-                                Text(result.title)
-                                    .foregroundStyle(.primary)
-                                Text(result.subtitle)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-
-                    Button(action: useCurrentLocation) {
-                        Label("Use Current Location", systemImage: "location.fill")
-                    }
-                    .disabled(locationManager.currentLocation == nil)
-
-                    PhotosPicker(selection: $geoPhotoItem, matching: .images) {
-                        Label("Use a Photo's Location", systemImage: "location.viewfinder")
-                    }
-
-                    if locationManager.isDenied {
-                        Text("Location access is off. Enable it in Settings to use your current location.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if let coordinate = selectedCoordinate {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label(selectedPlaceLabel ?? "Selected location", systemImage: "mappin.circle.fill")
-                                .foregroundStyle(.green)
-
-                            if let selectedAddress {
-                                Text(selectedAddress)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-
-                            Map(position: .constant(.region(MKCoordinateRegion(
-                                center: coordinate,
-                                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-                            )))) {
-                                Marker(name.isEmpty ? "New Memory" : name, coordinate: coordinate)
-                            }
-                            .frame(height: 150)
-                            .clipShape(RoundedRectangle(cornerRadius: 10))
-                            .allowsHitTesting(false)
-                        }
-                    }
+                    locationSectionContent
                 }
 
                 Section("Rating & Notes") {
-                    HStack {
-                        Text("Rating")
-                        Spacer()
-                        StarRatingPicker(rating: $rating)
-                    }
-
-                    TextField("What made it special?", text: $notes, axis: .vertical)
-                        .lineLimit(3...6)
-
-                    VoiceNoteControl(filename: $voiceNoteFilename, externallyOwnedFilename: nil)
+                    ratingAndNotesSectionContent
                 }
 
                 Section("Photos") {
-                    if !pickedPhotos.isEmpty {
-                        PhotoStrip(photos: $pickedPhotos)
-                    }
-
-                    PhotosPicker(selection: $pickerItems, maxSelectionCount: 10, matching: .images) {
-                        Label("Add Photos", systemImage: "photo.on.rectangle.angled")
-                    }
-
-                    if CameraView.isAvailable {
-                        Button(action: {
-                            showingCamera = true
-                        }) {
-                            Label("Take Photo", systemImage: "camera.fill")
-                        }
-                    }
+                    photosSectionContent
                 }
             }
             .navigationTitle("Add Memory")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        // Nothing has been saved yet, so any voice note recorded
-                        // during this session is an orphan — clean it up.
-                        VoiceNoteStore.delete(voiceNoteFilename)
-                        dismiss()
-                    }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveMemory()
-                    }
-                    .disabled(!canSave)
-                }
-            }
+            .toolbar { toolbarContent }
             .onAppear {
                 if let location = locationManager.currentLocation {
                     searchService.focus(around: location)
@@ -284,6 +191,159 @@ struct AddMemoryView: View {
             } message: {
                 Text("That photo doesn't have location data attached. This usually happens with screenshots or photos where Location Services was off.")
             }
+            .alert("Is This the Place?", isPresented: suggestedPlaceIsPresented, presenting: suggestedPlace) { place in
+                suggestedPlaceAlertActions(place)
+            } message: { place in
+                suggestedPlaceAlertMessage(place)
+            }
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("Cancel") {
+                // Nothing has been saved yet, so any voice note recorded
+                // during this session is an orphan — clean it up.
+                VoiceNoteStore.delete(voiceNoteFilename)
+                dismiss()
+            }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+            Button("Save") {
+                saveMemory()
+            }
+            .disabled(!canSave)
+        }
+    }
+
+    @ViewBuilder
+    private var placeDetailsSectionContent: some View {
+        TextField("Name", text: $name)
+
+        TextField("Website (optional)", text: $website)
+            .keyboardType(.URL)
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+
+        TextField("Phone (optional)", text: $phoneNumber)
+            .keyboardType(.phonePad)
+
+        Picker("Status", selection: $visitStatus) {
+            ForEach(VisitStatus.allCases) { status in
+                Text(status.rawValue).tag(status)
+            }
+        }
+        .pickerStyle(.segmented)
+
+        if visitStatus == .beenThere {
+            DatePicker("Date Visited", selection: $dateVisited, displayedComponents: .date)
+        }
+
+        Picker("Category", selection: $category) {
+            ForEach(Category.allCases) { cat in
+                Label(cat.rawValue, systemImage: cat.icon).tag(cat)
+            }
+        }
+        .pickerStyle(.menu)
+    }
+
+    @ViewBuilder
+    private var tripSectionContent: some View {
+        TextField("Trip or city (optional)", text: $tripName)
+
+        if !availableTrips.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(availableTrips, id: \.self) { trip in
+                        FilterChip(title: trip, color: .accentColor, isSelected: tripName == trip) {
+                            tripName = (tripName == trip) ? "" : trip
+                        }
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .listRowInsets(EdgeInsets())
+            .padding(.horizontal)
+            .padding(.vertical, 4)
+        }
+    }
+
+    @ViewBuilder
+    private var ratingAndNotesSectionContent: some View {
+        HStack {
+            Text("Rating")
+            Spacer()
+            StarRatingPicker(rating: $rating)
+        }
+
+        TextField("What made it special?", text: $notes, axis: .vertical)
+            .lineLimit(3...6)
+
+        VoiceNoteControl(filename: $voiceNoteFilename, externallyOwnedFilename: nil)
+    }
+
+    @ViewBuilder
+    private var photosSectionContent: some View {
+        if !pickedPhotos.isEmpty {
+            PhotoStrip(photos: $pickedPhotos)
+        }
+
+        PhotosPicker(selection: $pickerItems, maxSelectionCount: 10, matching: .images) {
+            Label("Add Photos", systemImage: "photo.on.rectangle.angled")
+        }
+
+        if CameraView.isAvailable {
+            Button(action: {
+                showingCamera = true
+            }) {
+                Label("Take Photo", systemImage: "camera.fill")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var locationSectionContent: some View {
+        TextField("Search for a place or address", text: $searchText)
+            .autocorrectionDisabled()
+
+        ForEach(searchService.results.prefix(5), id: \.self) { result in
+            Button(action: {
+                select(result)
+            }) {
+                VStack(alignment: .leading) {
+                    Text(result.title)
+                        .foregroundStyle(.primary)
+                    Text(result.subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+
+        Button(action: useCurrentLocation) {
+            Label("Use Current Location", systemImage: "location.fill")
+        }
+        .disabled(locationManager.currentLocation == nil)
+
+        PhotosPicker(selection: $geoPhotoItem, matching: .images) {
+            Label("Use a Photo's Location", systemImage: "location.viewfinder")
+        }
+
+        if locationManager.isDenied {
+            Text("Location access is off. Enable it in Settings to use your current location.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+
+        if let coordinate = selectedCoordinate {
+            SelectedLocationPreview(
+                coordinate: coordinate,
+                placeLabel: selectedPlaceLabel,
+                address: selectedAddress,
+                markerTitle: name.isEmpty ? "New Memory" : name,
+                cameraPosition: $previewCameraPosition
+            )
         }
     }
 
@@ -291,6 +351,7 @@ struct AddMemoryView: View {
         Task {
             if let resolved = await searchService.resolve(result) {
                 selectedCoordinate = resolved.coordinate
+                recenterPreview(on: resolved.coordinate)
                 selectedPlaceLabel = resolved.name
                 selectedAddress = resolved.address
                 if name.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -312,6 +373,7 @@ struct AddMemoryView: View {
     private func useCurrentLocation() {
         guard let location = locationManager.currentLocation else { return }
         selectedCoordinate = location
+        recenterPreview(on: location)
         selectedPlaceLabel = "Current location"
         selectedAddress = nil
         Task {
@@ -330,12 +392,68 @@ struct AddMemoryView: View {
             return
         }
         selectedCoordinate = geoData.coordinate
+        recenterPreview(on: geoData.coordinate)
         selectedPlaceLabel = "Photo location"
         if let dateTaken = geoData.dateTaken {
             dateVisited = dateTaken
         }
         pickedPhotos.append(PickedPhoto(data: data))
         selectedAddress = await LocationSearchService.address(for: geoData.coordinate)
+
+        // A raw GPS coordinate could be an actual business or just someone's
+        // backyard — offer the nearest match as a suggestion to confirm rather
+        // than filling in a stranger's business details automatically.
+        if let match = await LocationSearchService.nearestPlace(to: geoData.coordinate) {
+            suggestedPlace = SuggestedPlace(
+                name: match.name,
+                coordinate: match.coordinate,
+                address: match.address,
+                website: match.website,
+                phoneNumber: match.phoneNumber
+            )
+        }
+    }
+
+    private func recenterPreview(on coordinate: CLLocationCoordinate2D) {
+        previewCameraPosition = .region(MKCoordinateRegion(
+            center: coordinate,
+            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+        ))
+    }
+
+    private var suggestedPlaceIsPresented: Binding<Bool> {
+        Binding(get: { suggestedPlace != nil }, set: { if !$0 { suggestedPlace = nil } })
+    }
+
+    @ViewBuilder
+    private func suggestedPlaceAlertActions(_ place: SuggestedPlace) -> some View {
+        Button("Yes, Use This") {
+            applySuggestedPlace(place)
+            suggestedPlace = nil
+        }
+        Button("No", role: .cancel) {
+            suggestedPlace = nil
+        }
+    }
+
+    private func suggestedPlaceAlertMessage(_ place: SuggestedPlace) -> some View {
+        Text("We found “\(place.name)” near this photo's location. Use its name, website, and phone number?")
+    }
+
+    private func applySuggestedPlace(_ place: SuggestedPlace) {
+        selectedPlaceLabel = place.name
+        if let address = place.address {
+            selectedAddress = address
+        }
+        if name.trimmingCharacters(in: .whitespaces).isEmpty {
+            name = place.name
+        }
+        if website.trimmingCharacters(in: .whitespaces).isEmpty, let resolvedWebsite = place.website {
+            website = resolvedWebsite
+        }
+        if phoneNumber.trimmingCharacters(in: .whitespaces).isEmpty, let resolvedPhone = place.phoneNumber {
+            phoneNumber = resolvedPhone
+        }
     }
 
     private struct PhotoGeoData {

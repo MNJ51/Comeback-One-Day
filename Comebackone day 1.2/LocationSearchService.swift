@@ -54,6 +54,33 @@ class LocationSearchService: NSObject, ObservableObject {
         )
     }
 
+    /// Looks up the nearest known business/point of interest to a raw coordinate
+    /// (e.g. one read from a photo's GPS EXIF) — a coordinate alone doesn't say
+    /// whether it's a named place or just someone's backyard, so this is offered
+    /// as a suggestion to confirm rather than filled in automatically.
+    static func nearestPlace(to coordinate: CLLocationCoordinate2D) async -> (name: String, coordinate: CLLocationCoordinate2D, address: String?, website: String?, phoneNumber: String?)? {
+        let request = MKLocalPointsOfInterestRequest(center: coordinate, radius: 75)
+        let search = MKLocalSearch(request: request)
+        guard let response = try? await search.start(), !response.mapItems.isEmpty else {
+            return nil
+        }
+        let target = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        func distance(_ item: MKMapItem) -> CLLocationDistance {
+            target.distance(from: CLLocation(latitude: item.placemark.coordinate.latitude, longitude: item.placemark.coordinate.longitude))
+        }
+        guard let closest = response.mapItems.min(by: { distance($0) < distance($1) }),
+              let name = closest.name else {
+            return nil
+        }
+        return (
+            name,
+            closest.placemark.coordinate,
+            formattedAddress(from: closest.placemark),
+            closest.url?.absoluteString,
+            closest.phoneNumber
+        )
+    }
+
     /// Looks up a human-readable address for a coordinate.
     static func address(for coordinate: CLLocationCoordinate2D) async -> String? {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
