@@ -19,6 +19,11 @@ final class SubscriptionManager: ObservableObject {
     @Published private(set) var isSubscribed = false
     @Published private(set) var product: Product?
     @Published var purchaseError: String?
+    /// True once a load has finished (success or not) — distinguishes "still
+    /// loading" from "loaded, but there's genuinely no product" so the paywall
+    /// doesn't spin forever when, say, the App Store Connect product doesn't
+    /// exist yet or there's no local StoreKit configuration active.
+    @Published private(set) var hasAttemptedLoad = false
 
     private var updateListenerTask: Task<Void, Never>?
 
@@ -41,6 +46,7 @@ final class SubscriptionManager: ObservableObject {
         } catch {
             purchaseError = "Couldn't load subscription info: \(error.localizedDescription)"
         }
+        hasAttemptedLoad = true
     }
 
     func purchase() async {

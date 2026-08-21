@@ -92,6 +92,12 @@ struct PaywallView: View {
                     }
                     .disabled(isPurchasing)
                     .padding(.horizontal)
+                } else if subscriptionManager.hasAttemptedLoad {
+                    Text("Subscription info isn't available right now. Check your connection and try again.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
                 } else {
                     ProgressView("Loading…")
                 }
