@@ -9,6 +9,7 @@ import UIKit
 
 enum Category: String, Codable, CaseIterable, Identifiable {
     case restaurant = "Restaurant"
+    case glutenFree = "Gluten Free"
     case cafe = "Cafe"
     case bar = "Bar/Pub"
     case hotel = "Hotel"
@@ -20,6 +21,7 @@ enum Category: String, Codable, CaseIterable, Identifiable {
     var color: Color {
         switch self {
         case .restaurant: return .red
+        case .glutenFree: return .mint
         case .cafe: return .brown
         case .bar: return .orange
         case .hotel: return .blue
@@ -31,6 +33,7 @@ enum Category: String, Codable, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .restaurant: return "fork.knife"
+        case .glutenFree: return "leaf.fill"
         case .cafe: return "cup.and.saucer.fill"
         case .bar: return "wineglass.fill"
         case .hotel: return "bed.double.fill"

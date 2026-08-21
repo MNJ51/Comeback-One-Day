@@ -31,6 +31,7 @@ enum ItineraryVibe: String, CaseIterable, Identifiable {
     func weight(for category: Category) -> Double {
         switch (self, category) {
         case (.foodie, .restaurant): return 3
+        case (.foodie, .glutenFree): return 3
         case (.foodie, .foodMarket): return 3
         case (.foodie, .cafe): return 2
         case (.foodie, .bar): return 1.5
