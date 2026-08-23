@@ -202,6 +202,13 @@ struct ItineraryPlannerView: View {
 
     private var setupView: some View {
         Form {
+            if locationManager.isDenied {
+                Section {
+                    Label("Location access is off, so this searches near a default location instead of where you actually are. Enable it in Settings for accurate results.", systemImage: "location.slash.fill")
+                        .foregroundStyle(.orange)
+                }
+            }
+
             Section("Pick a vibe") {
                 Picker("Vibe", selection: $vibe) {
                     ForEach(ItineraryVibe.allCases) { vibe in
