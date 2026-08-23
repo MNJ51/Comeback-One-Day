@@ -127,9 +127,6 @@ struct PaywallView: View {
                     await subscriptionManager.loadProduct()
                 }
             }
-            .onChange(of: subscriptionManager.isSubscribed) { _, subscribed in
-                if subscribed { dismiss() }
-            }
         }
     }
 
