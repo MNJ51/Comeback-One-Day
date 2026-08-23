@@ -55,12 +55,23 @@ final class SubscriptionManager: ObservableObject {
             let result = try await product.purchase()
             switch result {
             case .success(let verification):
-                if case .verified(let transaction) = verification {
+                switch verification {
+                case .verified(let transaction):
+                    await transaction.finish()
+                    await refreshEntitlement()
+                case .unverified(let transaction, let verificationError):
+                    // StoreKit couldn't verify the transaction's signature. Still
+                    // finish it and refresh so local/sandbox testing isn't stuck
+                    // silently on the paywall, but surface the error — this
+                    // shouldn't happen with a real App Store purchase.
+                    purchaseError = "Purchase completed but couldn't be verified: \(verificationError.localizedDescription)"
                     await transaction.finish()
                     await refreshEntitlement()
                 }
-            case .userCancelled, .pending:
+            case .userCancelled:
                 break
+            case .pending:
+                purchaseError = "Purchase is pending approval."
             @unknown default:
                 break
             }
