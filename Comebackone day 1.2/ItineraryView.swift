@@ -77,11 +77,10 @@ struct PaywallView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 14) {
-                    featureRow(icon: "wand.and.stars", text: "Real nearby places, found live with ratings and photos")
-                    featureRow(icon: "star.fill", text: "Filter restaurants to 4★+ only, backed by real reviews")
+                    featureRow(icon: "wand.and.stars", text: "Real nearby places, found live via Apple Maps")
                     featureRow(icon: "slider.horizontal.3", text: "Pick a vibe — Relaxed, Adventure, Foodie, Culture, or Mystery")
                     featureRow(icon: "gift.fill", text: "A Mystery Stop from an offbeat category, revealed on the day")
-                    featureRow(icon: "point.topleft.down.curvedto.point.bottomright.up", text: "Stops ordered by rating and distance, not just nearest-first")
+                    featureRow(icon: "point.topleft.down.curvedto.point.bottomright.up", text: "Stops ordered into a sensible route from where you are")
                 }
                 .padding(.horizontal)
 
@@ -167,7 +166,6 @@ struct ItineraryPlannerView: View {
     @State private var vibe: ItineraryVibe = .relaxed
     @State private var maxDistanceKm: Double = 3
     @State private var travelMode: ItineraryTravelMode = .walking
-    @State private var topRatedRestaurantsOnly = false
     @State private var stops: [ItineraryStop] = []
     @State private var isSearching = false
     @State private var showingEmptyResultAlert = false
@@ -240,16 +238,10 @@ struct ItineraryPlannerView: View {
             }
 
             Section {
-                Toggle("Top-rated restaurants only (4★+)", isOn: $topRatedRestaurantsOnly)
-            } footer: {
-                Text("Only applies to restaurant stops, using ratings from Google. Other stop types are unaffected.")
-            }
-
-            Section {
                 Button {
                     Task {
                         isSearching = true
-                        stops = await ItineraryPlanner.discover(vibe: vibe, origin: origin, maxDistanceKm: maxDistanceKm, topRatedRestaurantsOnly: topRatedRestaurantsOnly)
+                        stops = await ItineraryPlanner.discover(vibe: vibe, origin: origin, maxDistanceKm: maxDistanceKm)
                         isSearching = false
                         if stops.isEmpty {
                             showingEmptyResultAlert = true
@@ -268,7 +260,7 @@ struct ItineraryPlannerView: View {
                 }
                 .disabled(isSearching)
             } footer: {
-                Text("Searches real nearby places live via Google — ratings, reviews, and photos included — not your saved places.")
+                Text("Searches real nearby places live via Apple Maps — not your saved places.")
             }
         }
         .alert("No Places Found", isPresented: $showingEmptyResultAlert) {
@@ -316,18 +308,6 @@ private struct ItineraryStopRow: View {
                 HStack(spacing: 12) {
                     stepNumber
 
-                    if isRevealed, let photoURL = stop.place.photoURL {
-                        AsyncImage(url: photoURL) { phase in
-                            if case .success(let image) = phase {
-                                image.resizable().scaledToFill()
-                            } else {
-                                Color.secondary.opacity(0.15)
-                            }
-                        }
-                        .frame(width: 44, height: 44)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-
                     if isRevealed {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 6) {
@@ -340,16 +320,9 @@ private struct ItineraryStopRow: View {
                                         .foregroundStyle(.purple)
                                 }
                             }
-                            HStack(spacing: 6) {
-                                Text(stop.place.category.rawValue)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                if let rating = stop.place.rating {
-                                    Text("· ★ \(String(format: "%.1f", rating))")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
+                            Text(stop.place.category.rawValue)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                     } else {
                         VStack(alignment: .leading, spacing: 4) {
@@ -425,6 +398,9 @@ private struct DiscoveredPlaceDetailSheet: View {
     @EnvironmentObject var store: MemoryStore
     @Environment(\.dismiss) private var dismiss
     @State private var didSave = false
+    // MapKit doesn't expose photos for arbitrary businesses via the public
+    // API (no legitimate free source does), so a live map preview is the
+    // closest honest substitute for "a photo of the place."
     @State private var previewCameraPosition: MapCameraPosition
 
     init(place: DiscoveredPlace, travelMode: ItineraryTravelMode) {
@@ -439,32 +415,11 @@ private struct DiscoveredPlaceDetailSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let photoURL = place.photoURL {
-                    Section {
-                        AsyncImage(url: photoURL) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image.resizable().scaledToFill()
-                            case .failure:
-                                Color.secondary.opacity(0.15)
-                            default:
-                                ProgressView()
-                                    .frame(maxWidth: .infinity)
-                            }
-                        }
-                        .frame(height: 220)
-                        .frame(maxWidth: .infinity)
-                        .clipped()
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .listRowInsets(EdgeInsets())
-                    }
-                }
-
                 Section {
                     Map(position: $previewCameraPosition) {
                         Marker(place.name, coordinate: place.coordinate)
                     }
-                    .frame(height: place.photoURL == nil ? 180 : 120)
+                    .frame(height: 180)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .listRowInsets(EdgeInsets())
                 }
@@ -474,23 +429,6 @@ private struct DiscoveredPlaceDetailSheet: View {
                         Image(systemName: place.category.icon)
                             .foregroundStyle(place.category.color)
                         Text(place.category.rawValue)
-                            .foregroundStyle(.secondary)
-                    }
-                    if let rating = place.rating {
-                        HStack(spacing: 4) {
-                            Image(systemName: "star.fill")
-                                .foregroundStyle(.yellow)
-                            Text(String(format: "%.1f", rating))
-                                .fontWeight(.semibold)
-                            if let count = place.userRatingCount {
-                                Text("(\(count) ratings)")
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-                    if let summary = place.summary {
-                        Text(summary)
-                            .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
                     if let address = place.address {

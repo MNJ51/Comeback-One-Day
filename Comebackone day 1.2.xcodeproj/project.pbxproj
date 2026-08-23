@@ -16,8 +16,6 @@
 		36244941F29B31497B3B2B62 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83A8F2D75B66D734F68EE167 /* Models.swift */; };
 		43922C3E5937A7283EA2B3C8 /* QuickCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30E96BCA507F20FD1A31CFE1 /* QuickCameraView.swift */; };
 		46D27D0D6E3EAF456A26F25D /* ItineraryPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFCDC2FB235CD59B43037AD7 /* ItineraryPlanner.swift */; };
-		8FC51B5E78174F027DE72259 /* GooglePlacesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F300FB74DA6514485B53EDCD /* GooglePlacesService.swift */; };
-		BD19DC4B5EFA32471B9B7E72 /* Secrets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40CC1852B601E698DE1D72E8 /* Secrets.swift */; };
 		6874D605E86E1E669E610B8E /* MemoryDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73FF137B4525C814F4B4C727 /* MemoryDetailView.swift */; };
 		7E7C7F5878DA5B6353D6B29A /* PhotoViewerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB8D8FFD6CCBFE3B1DA5207 /* PhotoViewerView.swift */; };
 		7EA0121ECFFC4B8A0BF526D3 /* VoiceNoteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E8C88C7F221D4F99983D630 /* VoiceNoteStore.swift */; };
@@ -70,8 +68,6 @@
 		A382945467C54D16E2A21D96 /* PhotoStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoStore.swift; sourceTree = "<group>"; };
 		A52514A4A00C7613AFACBDD3 /* StarRatingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarRatingView.swift; sourceTree = "<group>"; };
 		AFCDC2FB235CD59B43037AD7 /* ItineraryPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItineraryPlanner.swift; sourceTree = "<group>"; };
-		F300FB74DA6514485B53EDCD /* GooglePlacesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GooglePlacesService.swift; sourceTree = "<group>"; };
-		40CC1852B601E698DE1D72E8 /* Secrets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Secrets.swift; sourceTree = "<group>"; };
 		B25237B95968251ED1DB0C4B /* ItineraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItineraryView.swift; sourceTree = "<group>"; };
 		B6D1949ADAE89F7BE996D112 /* AddMemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddMemoryView.swift; sourceTree = "<group>"; };
 		BC28F3C5BBF45DB055104141 /* Comebackone_day_1_2App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Comebackone_day_1_2App.swift; sourceTree = "<group>"; };
@@ -160,8 +156,6 @@
 				2FB8D8FFD6CCBFE3B1DA5207 /* PhotoViewerView.swift */,
 				6E8C88C7F221D4F99983D630 /* VoiceNoteStore.swift */,
 				AFCDC2FB235CD59B43037AD7 /* ItineraryPlanner.swift */,
-				F300FB74DA6514485B53EDCD /* GooglePlacesService.swift */,
-				40CC1852B601E698DE1D72E8 /* Secrets.swift */,
 				0B10FB53DB621928AD60557A /* SubscriptionManager.swift */,
 				B25237B95968251ED1DB0C4B /* ItineraryView.swift */,
 				25C524F4B1F913431FD9DE83 /* Assets.xcassets */,
@@ -330,8 +324,6 @@
 				7E7C7F5878DA5B6353D6B29A /* PhotoViewerView.swift in Sources */,
 				7EA0121ECFFC4B8A0BF526D3 /* VoiceNoteStore.swift in Sources */,
 				46D27D0D6E3EAF456A26F25D /* ItineraryPlanner.swift in Sources */,
-				8FC51B5E78174F027DE72259 /* GooglePlacesService.swift in Sources */,
-				BD19DC4B5EFA32471B9B7E72 /* Secrets.swift in Sources */,
 				2728D1A1237943DBFA7E9F4F /* SubscriptionManager.swift in Sources */,
 				2E9CED32D0A2A7FAA3B1E8C0 /* ItineraryView.swift in Sources */,
 			);

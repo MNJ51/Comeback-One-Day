@@ -2,15 +2,15 @@
 //  ItineraryPlanner.swift
 //  Comebackone day 1.2
 //
-//  Itinerary generation searches real nearby places live via the Google
-//  Places API (New) rather than the user's saved places. Unlike MapKit,
-//  Google's API exposes star ratings, review counts, editorial summaries,
-//  and photos — which is what makes a "top-rated restaurants only" filter
-//  and real photos in the results possible at all.
+//  Itinerary generation searches real nearby places live via MapKit
+//  (MKLocalPointsOfInterestRequest — the same free, no-API-key system that
+//  already powers "Use a Photo's Location" in AddMemoryView) rather than the
+//  user's saved places. Apple's public MapKit API doesn't expose star ratings
+//  for arbitrary businesses, so there's no rating data to filter live results
+//  on — that's a real platform limitation, not an oversight.
 //
 
 import CoreLocation
-import Foundation
 import MapKit
 
 enum ItineraryVibe: String, CaseIterable, Identifiable {
@@ -19,7 +19,7 @@ enum ItineraryVibe: String, CaseIterable, Identifiable {
     case foodie = "Foodie"
     case culture = "Culture"
     /// Deliberately searches an unusual category pool (go-karts, planetariums,
-    /// water parks...) instead of the vibe's usual categories, so the plan
+    /// distilleries...) instead of the vibe's usual categories, so the plan
     /// surfaces things that wouldn't normally make an itinerary.
     case mystery = "Mystery"
 
@@ -35,20 +35,20 @@ enum ItineraryVibe: String, CaseIterable, Identifiable {
         }
     }
 
-    /// The Google Places (New) types searched for this vibe. Every value here
-    /// is a confirmed literal from Google's Table A place-type list.
-    var includedTypes: [String] {
+    /// The MapKit categories searched for this vibe. Every case here is a
+    /// confirmed MKPointOfInterestCategory member available on iOS 18.
+    var mapKitCategories: [MKPointOfInterestCategory] {
         switch self {
         case .relaxed:
-            return ["cafe", "coffee_shop", "park", "beach", "spa", "winery", "botanical_garden", "garden"]
+            return [.cafe, .park, .beach, .spa, .winery, .nightlife]
         case .adventure:
-            return ["park", "national_park", "state_park", "hiking_area", "campground", "marina", "beach", "adventure_sports_center", "off_roading_area"]
+            return [.park, .nationalPark, .hiking, .campground, .marina, .beach, .kayaking, .surfing, .rockClimbing]
         case .foodie:
-            return ["restaurant", "fine_dining_restaurant", "seafood_restaurant", "steakhouse", "bar_and_grill", "cafe", "bakery", "brewery", "winery", "bar", "pub"]
+            return [.restaurant, .cafe, .bakery, .brewery, .winery, .foodMarket, .distillery]
         case .culture:
-            return ["museum", "art_gallery", "art_museum", "history_museum", "historical_place", "historical_landmark", "cultural_landmark", "monument", "castle", "planetarium", "performing_arts_theater", "concert_hall", "live_music_venue", "movie_theater"]
+            return [.museum, .theater, .movieTheater, .landmark, .nationalMonument, .castle, .fortress, .planetarium, .musicVenue]
         case .mystery:
-            return ItineraryPlanner.mysteryTypes
+            return ItineraryPlanner.mysteryCategoryPool
         }
     }
 }
@@ -78,8 +78,8 @@ enum ItineraryTravelMode: String, CaseIterable, Identifiable {
     }
 }
 
-/// A place found via live Google Places search — not a saved TravelMemory,
-/// so it carries its own rating/photo rather than the user's own.
+/// A place found via live MapKit search — not a saved TravelMemory, so it has
+/// no rating, notes, or photos, only what MapKit's business listing provides.
 struct DiscoveredPlace: Identifiable {
     let id = UUID()
     let name: String
@@ -88,10 +88,6 @@ struct DiscoveredPlace: Identifiable {
     let address: String?
     let phoneNumber: String?
     let website: String?
-    let rating: Double?
-    let userRatingCount: Int?
-    let summary: String?
-    let photoURL: URL?
 }
 
 struct ItineraryStop: Identifiable {
@@ -101,56 +97,40 @@ struct ItineraryStop: Identifiable {
 }
 
 enum ItineraryPlanner {
-    /// Offbeat types used both for Mystery-vibe's main search and as the
+    /// Offbeat categories used both for Mystery-vibe's main search and as the
     /// bonus Mystery Stop pool for every other vibe.
-    static let mysteryTypes: [String] = [
-        "zoo", "aquarium", "planetarium", "go_karting_venue", "miniature_golf_course",
-        "skateboard_park", "amusement_park", "water_park", "roller_coaster",
-        "ferris_wheel", "karaoke", "comedy_club", "botanical_garden"
+    static let mysteryCategoryPool: [MKPointOfInterestCategory] = [
+        .zoo, .aquarium, .planetarium, .distillery, .goKart, .miniGolf,
+        .skatePark, .fairground, .rockClimbing, .kayaking, .surfing
     ]
 
-    /// A place is confidently "top-rated" once it has both a high score and
-    /// enough reviews behind it — a 5.0 from two reviews isn't trustworthy.
-    static let minTopRatedScore = 4.0
-    static let minTopRatedReviewCount = 10
-
-    /// Searches real nearby places live via Google Places and builds a day out
-    /// of the best matches for the vibe, ranked by a blend of rating and
-    /// distance (not just nearest-first) so the plan favors genuinely good
-    /// stops over merely convenient ones. Adds one bonus stop from the offbeat
-    /// Mystery pool for non-Mystery vibes, revealed only when tapped.
+    /// Searches real nearby places live via MapKit and builds a day out of the
+    /// nearest matches for the vibe, plus (for non-Mystery vibes) one bonus
+    /// stop from the offbeat Mystery pool, revealed only when tapped.
     static func discover(
         vibe: ItineraryVibe,
         origin: CLLocationCoordinate2D,
         maxDistanceKm: Double,
-        stopCount: Int = 4,
-        topRatedRestaurantsOnly: Bool = false
+        stopCount: Int = 4
     ) async -> [ItineraryStop] {
         guard stopCount > 0 else { return [] }
         let radiusMeters = min(maxDistanceKm * 1000, 50_000)
         let originLocation = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
 
-        var mainResults = await search(types: vibe.includedTypes, center: origin, radius: radiusMeters)
-        if topRatedRestaurantsOnly {
-            mainResults = mainResults.filter { place in
-                guard place.category == .restaurant else { return true }
-                return (place.rating ?? 0) >= minTopRatedScore
-            }
-        }
-
+        let mainResults = await search(categories: vibe.mapKitCategories, center: origin, radius: radiusMeters)
         var seenNames = Set<String>()
         let ranked = mainResults
-            .sorted { score(for: $0, from: originLocation) > score(for: $1, from: originLocation) }
+            .sorted { originLocation.distance(from: $0.clLocation) < originLocation.distance(from: $1.clLocation) }
             .filter { seenNames.insert($0.name.lowercased()).inserted }
         let picks = Array(ranked.prefix(stopCount))
 
         var stops = picks.map { ItineraryStop(place: $0, isMysteryStop: false) }
 
         if vibe != .mystery {
-            let mysteryResults = await search(types: mysteryTypes, center: origin, radius: radiusMeters)
+            let mysteryResults = await search(categories: mysteryCategoryPool, center: origin, radius: radiusMeters)
             let usedNames = Set(picks.map { $0.name.lowercased() })
             if let mystery = mysteryResults
-                .sorted(by: { score(for: $0, from: originLocation) > score(for: $1, from: originLocation) })
+                .sorted(by: { originLocation.distance(from: $0.clLocation) < originLocation.distance(from: $1.clLocation) })
                 .first(where: { !usedNames.contains($0.name.lowercased()) }) {
                 stops.append(ItineraryStop(place: mystery, isMysteryStop: true))
             }
@@ -159,66 +139,41 @@ enum ItineraryPlanner {
         return stops
     }
 
-    /// Rewards higher ratings while still mildly penalizing distance, so a
-    /// 4.8★ place a bit further away can beat a mediocre one right next door.
-    private static func score(for place: DiscoveredPlace, from origin: CLLocation) -> Double {
-        let distanceKm = origin.distance(from: place.clLocation) / 1000
-        let rating = place.rating ?? 3.8
-        return rating - (distanceKm * 0.15)
-    }
-
     private static func search(
-        types: [String],
+        categories: [MKPointOfInterestCategory],
         center: CLLocationCoordinate2D,
         radius: CLLocationDistance
     ) async -> [DiscoveredPlace] {
-        let places = await GooglePlacesService.searchNearby(includedTypes: types, center: center, radiusMeters: radius)
-        return places.map { place in
-            DiscoveredPlace(
-                name: place.name,
-                category: Category.from(googleTypes: place.types, primaryType: place.primaryType),
-                coordinate: place.coordinate,
-                address: place.address,
-                phoneNumber: place.phoneNumber,
-                website: place.website,
-                rating: place.rating,
-                userRatingCount: place.userRatingCount,
-                summary: place.summary,
-                photoURL: place.photoName.flatMap { GooglePlacesService.photoURL(photoName: $0) }
+        let request = MKLocalPointsOfInterestRequest(center: center, radius: radius)
+        request.pointOfInterestFilter = MKPointOfInterestFilter(including: categories)
+        let search = MKLocalSearch(request: request)
+        guard let response = try? await search.start() else { return [] }
+        return response.mapItems.compactMap { item in
+            guard let name = item.name else { return nil }
+            return DiscoveredPlace(
+                name: name,
+                category: Category.from(mapKitCategory: item.pointOfInterestCategory),
+                coordinate: item.placemark.coordinate,
+                address: item.placemark.title,
+                phoneNumber: item.phoneNumber,
+                website: item.url?.absoluteString
             )
         }
     }
 }
 
 extension Category {
-    private static let restaurantTypes: Set<String> = [
-        "restaurant", "fine_dining_restaurant", "fast_food_restaurant", "seafood_restaurant",
-        "steakhouse", "mexican_restaurant", "pizza_restaurant", "bar_and_grill",
-        "barbecue_restaurant", "deli", "food_court", "ice_cream_shop", "donut_shop"
-    ]
-    private static let cafeTypes: Set<String> = ["cafe", "coffee_shop", "bakery"]
-    private static let barTypes: Set<String> = ["bar", "pub", "brewery", "winery", "night_club"]
-    private static let hotelTypes: Set<String> = [
-        "hotel", "lodging", "bed_and_breakfast", "hostel", "motel", "resort_hotel",
-        "inn", "guest_house", "extended_stay_hotel", "cottage", "farmstay"
-    ]
-    private static let foodMarketTypes: Set<String> = [
-        "grocery_store", "supermarket", "farmers_market", "market", "food_store"
-    ]
-
-    /// Best-effort mapping from Google's much larger type set onto this app's
-    /// own categories, for pin color/icon purposes only.
-    static func from(googleTypes: [String], primaryType: String?) -> Category {
-        var candidates = googleTypes
-        if let primaryType { candidates = [primaryType] + candidates }
-        for type in candidates {
-            if restaurantTypes.contains(type) { return .restaurant }
-            if cafeTypes.contains(type) { return .cafe }
-            if barTypes.contains(type) { return .bar }
-            if hotelTypes.contains(type) { return .hotel }
-            if foodMarketTypes.contains(type) { return .foodMarket }
+    /// Best-effort mapping from MapKit's much larger category set onto this
+    /// app's own categories, for pin color/icon purposes only.
+    static func from(mapKitCategory: MKPointOfInterestCategory?) -> Category {
+        switch mapKitCategory {
+        case .restaurant: return .restaurant
+        case .cafe, .bakery: return .cafe
+        case .brewery, .winery, .nightlife, .distillery: return .bar
+        case .hotel: return .hotel
+        case .foodMarket: return .foodMarket
+        default: return .location
         }
-        return .location
     }
 }
 

@@ -7,6 +7,7 @@
 
 import CoreLocation
 import Foundation
+import MapKit
 import Testing
 @testable import Comebackone_day_1_2
 
@@ -418,62 +419,56 @@ struct TravelMemoryCodingTests {
 }
 
 struct ItineraryPlannerTests {
-    // discover() itself makes a live Google Places network call, so —
-    // consistent with this codebase's other network-backed code
-    // (LocationSearchService is not unit tested either) — only the pure,
-    // deterministic logic around it is tested here: category mapping and
-    // each vibe's search type set.
+    // discover() itself makes a live MapKit network call, so — consistent with
+    // this codebase's other MapKit-backed code (LocationSearchService is not
+    // unit tested either) — only the pure, deterministic logic around it is
+    // tested here: category mapping and each vibe's search category set.
 
-    @Test func categoryMappingCoversCommonGoogleTypes() {
-        #expect(Comebackone_day_1_2.Category.from(googleTypes: ["restaurant"], primaryType: "restaurant") == .restaurant)
-        #expect(Comebackone_day_1_2.Category.from(googleTypes: ["cafe"], primaryType: "cafe") == .cafe)
-        #expect(Comebackone_day_1_2.Category.from(googleTypes: ["bakery"], primaryType: "bakery") == .cafe)
-        #expect(Comebackone_day_1_2.Category.from(googleTypes: ["hotel"], primaryType: "hotel") == .hotel)
-        #expect(Comebackone_day_1_2.Category.from(googleTypes: ["grocery_store"], primaryType: "grocery_store") == .foodMarket)
-        #expect(Comebackone_day_1_2.Category.from(googleTypes: ["brewery"], primaryType: "brewery") == .bar)
-        #expect(Comebackone_day_1_2.Category.from(googleTypes: ["winery"], primaryType: "winery") == .bar)
+    @Test func categoryMappingCoversCommonMapKitCategories() {
+        #expect(Comebackone_day_1_2.Category.from(mapKitCategory: .restaurant) == .restaurant)
+        #expect(Comebackone_day_1_2.Category.from(mapKitCategory: .cafe) == .cafe)
+        #expect(Comebackone_day_1_2.Category.from(mapKitCategory: .bakery) == .cafe)
+        #expect(Comebackone_day_1_2.Category.from(mapKitCategory: .hotel) == .hotel)
+        #expect(Comebackone_day_1_2.Category.from(mapKitCategory: .foodMarket) == .foodMarket)
+        #expect(Comebackone_day_1_2.Category.from(mapKitCategory: .brewery) == .bar)
+        #expect(Comebackone_day_1_2.Category.from(mapKitCategory: .winery) == .bar)
     }
 
-    @Test func categoryMappingFallsBackToLocationForUnmappedTypes() {
-        #expect(Comebackone_day_1_2.Category.from(googleTypes: ["museum"], primaryType: "museum") == .location)
-        #expect(Comebackone_day_1_2.Category.from(googleTypes: [], primaryType: nil) == .location)
+    @Test func categoryMappingFallsBackToLocationForUnmappedCategories() {
+        #expect(Comebackone_day_1_2.Category.from(mapKitCategory: .museum) == .location)
+        #expect(Comebackone_day_1_2.Category.from(mapKitCategory: nil) == .location)
     }
 
-    @Test func categoryMappingPrefersPrimaryTypeOverSecondaryTypes() {
-        // A cafe that also happens to sell groceries should still read as a cafe.
-        #expect(Comebackone_day_1_2.Category.from(googleTypes: ["grocery_store", "cafe"], primaryType: "cafe") == .cafe)
+    @Test func foodieSearchesFoodCategories() {
+        let categories = ItineraryVibe.foodie.mapKitCategories
+        #expect(categories.contains(.restaurant))
+        #expect(categories.contains(.cafe))
+        #expect(categories.contains(.foodMarket))
     }
 
-    @Test func foodieSearchesFoodTypes() {
-        let types = ItineraryVibe.foodie.includedTypes
-        #expect(types.contains("restaurant"))
-        #expect(types.contains("cafe"))
-        #expect(!types.contains("museum"))
+    @Test func adventureSearchesOutdoorCategories() {
+        let categories = ItineraryVibe.adventure.mapKitCategories
+        #expect(categories.contains(.park))
+        #expect(categories.contains(.hiking))
+        #expect(!categories.contains(.restaurant))
     }
 
-    @Test func adventureSearchesOutdoorTypes() {
-        let types = ItineraryVibe.adventure.includedTypes
-        #expect(types.contains("park"))
-        #expect(types.contains("hiking_area"))
-        #expect(!types.contains("restaurant"))
-    }
-
-    @Test func cultureSearchesCulturalTypes() {
-        let types = ItineraryVibe.culture.includedTypes
-        #expect(types.contains("museum"))
-        #expect(types.contains("historical_landmark"))
+    @Test func cultureSearchesCulturalCategories() {
+        let categories = ItineraryVibe.culture.mapKitCategories
+        #expect(categories.contains(.museum))
+        #expect(categories.contains(.landmark))
     }
 
     @Test func mysteryVibeUsesTheOffbeatPool() {
-        #expect(ItineraryVibe.mystery.includedTypes == ItineraryPlanner.mysteryTypes)
+        #expect(ItineraryVibe.mystery.mapKitCategories == ItineraryPlanner.mysteryCategoryPool)
         // The offbeat pool shouldn't just be a rehash of the other vibes' obvious picks.
-        #expect(!ItineraryPlanner.mysteryTypes.contains("restaurant"))
-        #expect(!ItineraryPlanner.mysteryTypes.contains("museum"))
+        #expect(!ItineraryPlanner.mysteryCategoryPool.contains(.restaurant))
+        #expect(!ItineraryPlanner.mysteryCategoryPool.contains(.museum))
     }
 
-    @Test func everyVibeHasAtLeastOneSearchType() {
+    @Test func everyVibeHasAtLeastOneSearchCategory() {
         for vibe in ItineraryVibe.allCases {
-            #expect(!vibe.includedTypes.isEmpty)
+            #expect(!vibe.mapKitCategories.isEmpty)
         }
     }
 
