@@ -15,23 +15,40 @@ struct ItineraryButton: View {
     @EnvironmentObject var store: MemoryStore
     @EnvironmentObject var locationManager: LocationManager
     @EnvironmentObject var subscriptionManager: SubscriptionManager
-    @State private var showingItinerary = false
+    @State private var presentedSheet: ItinerarySheet?
+
+    private enum ItinerarySheet: Identifiable, Hashable {
+        case paywall
+        case planner
+        var id: Self { self }
+    }
 
     var body: some View {
         Button {
-            showingItinerary = true
+            presentedSheet = subscriptionManager.isSubscribed ? .planner : .paywall
         } label: {
             Image(systemName: "map")
         }
-        .sheet(isPresented: $showingItinerary) {
-            if subscriptionManager.isSubscribed {
+        // .sheet(item:) re-invokes its content closure whenever the item's
+        // identity changes — unlike .sheet(isPresented:) with branching content,
+        // which in practice didn't reliably re-render when isSubscribed flipped
+        // true mid-presentation (purchase succeeded but the sheet stayed on the
+        // paywall). Explicitly switching the item on subscribe is guaranteed to work.
+        .sheet(item: $presentedSheet) { sheet in
+            switch sheet {
+            case .planner:
                 ItineraryPlannerView()
                     .environmentObject(store)
                     .environmentObject(locationManager)
                     .environmentObject(subscriptionManager)
-            } else {
+            case .paywall:
                 PaywallView()
                     .environmentObject(subscriptionManager)
+            }
+        }
+        .onChange(of: subscriptionManager.isSubscribed) { _, subscribed in
+            if subscribed && presentedSheet == .paywall {
+                presentedSheet = .planner
             }
         }
     }
