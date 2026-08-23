@@ -58,15 +58,12 @@ final class SubscriptionManager: ObservableObject {
                 switch verification {
                 case .verified(let transaction):
                     await transaction.finish()
-                    await refreshEntitlement()
                 case .unverified(let transaction, let verificationError):
                     // StoreKit couldn't verify the transaction's signature. Still
-                    // finish it and refresh so local/sandbox testing isn't stuck
-                    // silently on the paywall, but surface the error — this
-                    // shouldn't happen with a real App Store purchase.
+                    // finish it so local/sandbox testing isn't stuck, but surface
+                    // the error — this shouldn't happen with a real purchase.
                     purchaseError = "Purchase completed but couldn't be verified: \(verificationError.localizedDescription)"
                     await transaction.finish()
-                    await refreshEntitlement()
                 }
             case .userCancelled:
                 break
@@ -78,6 +75,12 @@ final class SubscriptionManager: ObservableObject {
         } catch {
             purchaseError = "Purchase failed: \(error.localizedDescription)"
         }
+        // Always refresh, even on .userCancelled: StoreKit's "you already own
+        // this" info sheet (shown when re-tapping Subscribe on an active
+        // subscription) resolves as .userCancelled since nothing new was
+        // purchased — but the entitlement is real and this is the only place
+        // that would otherwise notice it.
+        await refreshEntitlement()
     }
 
     func restorePurchases() async {
