@@ -165,6 +165,7 @@ struct ItineraryPlannerView: View {
 
     @State private var vibe: ItineraryVibe = .relaxed
     @State private var glutenFreeOnly = false
+    @State private var topRatedRestaurantsOnly = false
     @State private var maxDistanceKm: Double = 3
     @State private var travelMode: ItineraryTravelMode = .walking
     @State private var stops: [ItineraryStop] = []
@@ -238,13 +239,20 @@ struct ItineraryPlannerView: View {
             }
 
             Section {
+                Toggle("Top-Rated Restaurants Only", isOn: $topRatedRestaurantsOnly)
+            } footer: {
+                Text("Only include restaurants rated 4 stars or higher — the closest we can do to \"4.5+\" since ratings are whole stars.")
+            }
+
+            Section {
                 Button {
                     stops = ItineraryPlanner.generate(
                         from: store.memories,
                         vibe: vibe,
                         origin: origin,
                         maxDistanceKm: maxDistanceKm,
-                        glutenFreeOnly: glutenFreeOnly
+                        glutenFreeOnly: glutenFreeOnly,
+                        topRatedRestaurantsOnly: topRatedRestaurantsOnly
                     )
                     hasGenerated = true
                 } label: {

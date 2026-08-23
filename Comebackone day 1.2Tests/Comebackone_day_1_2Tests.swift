@@ -557,6 +557,33 @@ struct ItineraryPlannerTests {
         #expect(names == ["Near"])
     }
 
+    @Test func topRatedRestaurantsOnlyExcludesLowerRatedRestaurants() {
+        let greatRestaurant = place("Great", lon: 0.005, category: .restaurant, rating: 4)
+        let mehRestaurant = place("Meh", lon: 0.006, category: .restaurant, rating: 3)
+
+        let stops = ItineraryPlanner.generate(from: [greatRestaurant, mehRestaurant], vibe: .foodie, origin: origin, stopCount: 3, topRatedRestaurantsOnly: true)
+        let names = stops.filter { !$0.isMysteryStop }.map(\.memory.name)
+        #expect(names == ["Great"])
+    }
+
+    @Test func topRatedRestaurantsOnlyNeverExcludesNonRestaurantCategories() {
+        let cafe = place("Cafe", lon: 0.005, category: .cafe, rating: 2)
+        let hotel = place("Hotel", lon: 0.006, category: .hotel, rating: 1)
+
+        let stops = ItineraryPlanner.generate(from: [cafe, hotel], vibe: .relaxed, origin: origin, stopCount: 3, topRatedRestaurantsOnly: true)
+        let names = Set(stops.filter { !$0.isMysteryStop }.map(\.memory.name))
+        #expect(names == ["Cafe", "Hotel"])
+    }
+
+    @Test func topRatedRestaurantsOnlyOffIncludesEverything() {
+        let greatRestaurant = place("Great", lon: 0.005, category: .restaurant, rating: 4)
+        let mehRestaurant = place("Meh", lon: 0.006, category: .restaurant, rating: 3)
+
+        let stops = ItineraryPlanner.generate(from: [greatRestaurant, mehRestaurant], vibe: .foodie, origin: origin, stopCount: 3, topRatedRestaurantsOnly: false)
+        let names = Set(stops.filter { !$0.isMysteryStop }.map(\.memory.name))
+        #expect(names == ["Great", "Meh"])
+    }
+
     @Test func glutenFreeOnlyOffIncludesEverything() {
         let glutenFreeCafe = place("GF Cafe", lon: 0.005, category: .cafe, isGlutenFree: true)
         let regularCafe = place("Regular Cafe", lon: 0.006, category: .cafe, isGlutenFree: false)

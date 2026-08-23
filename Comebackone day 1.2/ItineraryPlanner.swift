@@ -95,11 +95,13 @@ enum ItineraryPlanner {
         stopCount: Int = 4,
         maxDistanceKm: Double = 5,
         glutenFreeOnly: Bool = false,
+        topRatedRestaurantsOnly: Bool = false,
         using rng: inout RNG
     ) -> [ItineraryStop] {
         let originLocation = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
         let withinRange = memories.filter { originLocation.distance(from: $0.clLocation) / 1000 <= maxDistanceKm }
-        let eligible = filterGlutenFree(withinRange, glutenFreeOnly: glutenFreeOnly)
+        let glutenFreeFiltered = filterGlutenFree(withinRange, glutenFreeOnly: glutenFreeOnly)
+        let eligible = filterTopRatedRestaurants(glutenFreeFiltered, topRatedRestaurantsOnly: topRatedRestaurantsOnly)
         guard !eligible.isEmpty, stopCount > 0 else { return [] }
 
         func score(_ memory: TravelMemory) -> Double {
@@ -140,10 +142,11 @@ enum ItineraryPlanner {
         origin: CLLocationCoordinate2D,
         stopCount: Int = 4,
         maxDistanceKm: Double = 5,
-        glutenFreeOnly: Bool = false
+        glutenFreeOnly: Bool = false,
+        topRatedRestaurantsOnly: Bool = false
     ) -> [ItineraryStop] {
         var rng = SystemRandomNumberGenerator()
-        return generate(from: memories, vibe: vibe, origin: origin, stopCount: stopCount, maxDistanceKm: maxDistanceKm, glutenFreeOnly: glutenFreeOnly, using: &rng)
+        return generate(from: memories, vibe: vibe, origin: origin, stopCount: stopCount, maxDistanceKm: maxDistanceKm, glutenFreeOnly: glutenFreeOnly, topRatedRestaurantsOnly: topRatedRestaurantsOnly, using: &rng)
     }
 
     /// Keeps every non-food place as-is; when `glutenFreeOnly` is on, food-related
@@ -153,6 +156,14 @@ enum ItineraryPlanner {
     private static func filterGlutenFree(_ memories: [TravelMemory], glutenFreeOnly: Bool) -> [TravelMemory] {
         guard glutenFreeOnly else { return memories }
         return memories.filter { !$0.category.isFoodRelated || $0.isGlutenFree }
+    }
+
+    /// Ratings are whole stars (1–5) — there's no literal "4.5" to filter on, so
+    /// this uses 4★ and up as the closest real equivalent. Only restaurants are
+    /// affected; every other category passes through untouched.
+    private static func filterTopRatedRestaurants(_ memories: [TravelMemory], topRatedRestaurantsOnly: Bool) -> [TravelMemory] {
+        guard topRatedRestaurantsOnly else { return memories }
+        return memories.filter { $0.category != .restaurant || $0.rating >= 4 }
     }
 
     /// The pool a Mystery Stop can be drawn from: wishlist places not already
