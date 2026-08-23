@@ -477,4 +477,23 @@ struct ItineraryPlannerTests {
         let stops = await ItineraryPlanner.discover(vibe: .relaxed, origin: origin, maxDistanceKm: 3, stopCount: 0)
         #expect(stops.isEmpty)
     }
+
+    // MapKit exposes no rating, so "top" places are ranked by a free proxy:
+    // having both a website and phone number (a verifiable, established
+    // business), falling back to MapKit's own relevance order as a tiebreak.
+    @Test func rankPrefersPlacesWithWebsiteAndPhoneOverBarePins() {
+        let coordinate = CLLocationCoordinate2D(latitude: -26.41, longitude: 153.09)
+        let barePin = DiscoveredPlace(name: "Bare Pin", category: .location, coordinate: coordinate, address: nil, phoneNumber: nil, website: nil)
+        let established = DiscoveredPlace(name: "Established Cafe", category: .cafe, coordinate: coordinate, address: nil, phoneNumber: "0712345678", website: "https://example.com")
+        let ranked = ItineraryPlanner.rank([barePin, established])
+        #expect(ranked.first?.name == "Established Cafe")
+    }
+
+    @Test func rankPreservesOriginalOrderWithinTheSameEstablishmentScore() {
+        let coordinate = CLLocationCoordinate2D(latitude: -26.41, longitude: 153.09)
+        let first = DiscoveredPlace(name: "First", category: .location, coordinate: coordinate, address: nil, phoneNumber: nil, website: nil)
+        let second = DiscoveredPlace(name: "Second", category: .location, coordinate: coordinate, address: nil, phoneNumber: nil, website: nil)
+        let ranked = ItineraryPlanner.rank([first, second])
+        #expect(ranked.map(\.name) == ["First", "Second"])
+    }
 }

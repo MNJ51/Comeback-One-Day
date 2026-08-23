@@ -293,6 +293,7 @@ private struct ItineraryStopRow: View {
 
     @State private var mysteryRevealed = false
     @State private var showingDetail = false
+    @State private var thumbnail: UIImage?
 
     private var isRevealed: Bool { !stop.isMysteryStop || mysteryRevealed }
 
@@ -307,6 +308,14 @@ private struct ItineraryStopRow: View {
             } label: {
                 HStack(spacing: 12) {
                     stepNumber
+
+                    if isRevealed, let thumbnail {
+                        Image(uiImage: thumbnail)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 44, height: 44)
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
 
                     if isRevealed {
                         VStack(alignment: .leading, spacing: 4) {
@@ -363,6 +372,10 @@ private struct ItineraryStopRow: View {
             DiscoveredPlaceDetailSheet(place: stop.place, travelMode: travelMode)
                 .environmentObject(store)
         }
+        .task {
+            guard thumbnail == nil, let website = stop.place.website, let url = URL(string: website) else { return }
+            thumbnail = await LinkPreviewImageLoader.image(for: url)
+        }
     }
 
     private func openDirections() {
@@ -398,10 +411,18 @@ private struct DiscoveredPlaceDetailSheet: View {
     @EnvironmentObject var store: MemoryStore
     @Environment(\.dismiss) private var dismiss
     @State private var didSave = false
-    // MapKit doesn't expose photos for arbitrary businesses via the public
-    // API (no legitimate free source does), so a live map preview is the
-    // closest honest substitute for "a photo of the place."
     @State private var previewCameraPosition: MapCameraPosition
+    // MapKit itself exposes no business photos, but many sites publish their
+    // own preview image — this pulls one from the place's website, when it
+    // has one, via the same link-preview mechanism Messages/Safari use. When
+    // there's no website, or the site has no preview image, this stays nil
+    // and the map below is the only visual, same as before.
+    @State private var heroImage: UIImage?
+    @State private var heroImageLoadAttempted = false
+
+    private var isHeroSectionShown: Bool {
+        heroImage != nil || (place.website != nil && !heroImageLoadAttempted)
+    }
 
     init(place: DiscoveredPlace, travelMode: ItineraryTravelMode) {
         self.place = place
@@ -415,11 +436,35 @@ private struct DiscoveredPlaceDetailSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let heroImage {
+                    Section {
+                        Image(uiImage: heroImage)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(height: 220)
+                            .frame(maxWidth: .infinity)
+                            .clipped()
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .listRowInsets(EdgeInsets())
+                    }
+                } else if let website = place.website, let url = URL(string: website), !heroImageLoadAttempted {
+                    Section {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 40)
+                            .listRowInsets(EdgeInsets())
+                    }
+                    .task {
+                        heroImage = await LinkPreviewImageLoader.image(for: url)
+                        heroImageLoadAttempted = true
+                    }
+                }
+
                 Section {
                     Map(position: $previewCameraPosition) {
                         Marker(place.name, coordinate: place.coordinate)
                     }
-                    .frame(height: 180)
+                    .frame(height: isHeroSectionShown ? 120 : 180)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                     .listRowInsets(EdgeInsets())
                 }

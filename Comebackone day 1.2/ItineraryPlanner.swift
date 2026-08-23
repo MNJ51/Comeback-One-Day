@@ -105,8 +105,8 @@ enum ItineraryPlanner {
     ]
 
     /// Searches real nearby places live via MapKit and builds a day out of the
-    /// nearest matches for the vibe, plus (for non-Mystery vibes) one bonus
-    /// stop from the offbeat Mystery pool, revealed only when tapped.
+    /// best matches for the vibe (see `rank`), plus (for non-Mystery vibes)
+    /// one bonus stop from the offbeat Mystery pool, revealed only when tapped.
     static func discover(
         vibe: ItineraryVibe,
         origin: CLLocationCoordinate2D,
@@ -115,12 +115,10 @@ enum ItineraryPlanner {
     ) async -> [ItineraryStop] {
         guard stopCount > 0 else { return [] }
         let radiusMeters = min(maxDistanceKm * 1000, 50_000)
-        let originLocation = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
 
         let mainResults = await search(categories: vibe.mapKitCategories, center: origin, radius: radiusMeters)
         var seenNames = Set<String>()
-        let ranked = mainResults
-            .sorted { originLocation.distance(from: $0.clLocation) < originLocation.distance(from: $1.clLocation) }
+        let ranked = rank(mainResults)
             .filter { seenNames.insert($0.name.lowercased()).inserted }
         let picks = Array(ranked.prefix(stopCount))
 
@@ -129,14 +127,33 @@ enum ItineraryPlanner {
         if vibe != .mystery {
             let mysteryResults = await search(categories: mysteryCategoryPool, center: origin, radius: radiusMeters)
             let usedNames = Set(picks.map { $0.name.lowercased() })
-            if let mystery = mysteryResults
-                .sorted(by: { originLocation.distance(from: $0.clLocation) < originLocation.distance(from: $1.clLocation) })
+            if let mystery = rank(mysteryResults)
                 .first(where: { !usedNames.contains($0.name.lowercased()) }) {
                 stops.append(ItineraryStop(place: mystery, isMysteryStop: true))
             }
         }
 
         return stops
+    }
+
+    /// MapKit exposes no rating or popularity signal for arbitrary businesses,
+    /// so "top" here means the best free proxy available: a verifiable,
+    /// established business (has a website and a phone number) ranks above a
+    /// bare pin, with Apple's own search-relevance order (the order results
+    /// came back in) as the stable tiebreak.
+    static func rank(_ places: [DiscoveredPlace]) -> [DiscoveredPlace] {
+        places.enumerated()
+            .sorted { lhs, rhs in
+                let lhsScore = establishmentScore(lhs.element)
+                let rhsScore = establishmentScore(rhs.element)
+                if lhsScore != rhsScore { return lhsScore > rhsScore }
+                return lhs.offset < rhs.offset
+            }
+            .map(\.element)
+    }
+
+    private static func establishmentScore(_ place: DiscoveredPlace) -> Int {
+        (place.website != nil ? 1 : 0) + (place.phoneNumber != nil ? 1 : 0)
     }
 
     private static func search(
@@ -175,8 +192,4 @@ extension Category {
         default: return .location
         }
     }
-}
-
-private extension DiscoveredPlace {
-    var clLocation: CLLocation { CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude) }
 }
