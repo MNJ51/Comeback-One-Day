@@ -70,16 +70,16 @@ struct PaywallView: View {
                 VStack(spacing: 8) {
                     Text("Itinerary Plus")
                         .font(.title2.bold())
-                    Text("Turn your saved places into a ready-to-go day out.")
+                    Text("Discover a ready-to-go day out, wherever you are.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 }
 
                 VStack(alignment: .leading, spacing: 14) {
-                    featureRow(icon: "wand.and.stars", text: "Auto-generated day itineraries from your saved places")
-                    featureRow(icon: "slider.horizontal.3", text: "Pick a vibe — Relaxed, Adventure, Foodie, or Culture")
-                    featureRow(icon: "gift.fill", text: "A Mystery Stop pulled from your wishlist, revealed on the day")
+                    featureRow(icon: "wand.and.stars", text: "Real nearby places, found live via Apple Maps")
+                    featureRow(icon: "slider.horizontal.3", text: "Pick a vibe — Relaxed, Adventure, Foodie, Culture, or Mystery")
+                    featureRow(icon: "gift.fill", text: "A Mystery Stop from an offbeat category, revealed on the day")
                     featureRow(icon: "point.topleft.down.curvedto.point.bottomright.up", text: "Stops ordered into a sensible route from where you are")
                 }
                 .padding(.horizontal)
@@ -164,16 +164,14 @@ struct ItineraryPlannerView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var vibe: ItineraryVibe = .relaxed
-    @State private var glutenFreeOnly = false
-    @State private var topRatedRestaurantsOnly = false
     @State private var maxDistanceKm: Double = 3
     @State private var travelMode: ItineraryTravelMode = .walking
     @State private var stops: [ItineraryStop] = []
+    @State private var isSearching = false
     @State private var showingEmptyResultAlert = false
 
     private var origin: CLLocationCoordinate2D {
-        locationManager.currentLocation ?? store.memories.first?.coordinate
-            ?? CLLocationCoordinate2D(latitude: -27.4705, longitude: 153.0260)
+        locationManager.currentLocation ?? CLLocationCoordinate2D(latitude: -27.4705, longitude: 153.0260)
     }
 
     var body: some View {
@@ -233,44 +231,35 @@ struct ItineraryPlannerView: View {
             }
 
             Section {
-                Toggle("Gluten Free Restaurants Only", isOn: $glutenFreeOnly)
-            } footer: {
-                Text("Only include restaurants, cafes, bars, and markets marked as having gluten-free options.")
-            }
-
-            Section {
-                Toggle("Top-Rated Restaurants Only", isOn: $topRatedRestaurantsOnly)
-            } footer: {
-                Text("Only include restaurants rated 4 stars or higher — the closest we can do to \"4.5+\" since ratings are whole stars.")
-            }
-
-            Section {
                 Button {
-                    stops = ItineraryPlanner.generate(
-                        from: store.memories,
-                        vibe: vibe,
-                        origin: origin,
-                        maxDistanceKm: maxDistanceKm,
-                        glutenFreeOnly: glutenFreeOnly,
-                        topRatedRestaurantsOnly: topRatedRestaurantsOnly
-                    )
-                    if stops.isEmpty {
-                        showingEmptyResultAlert = true
+                    Task {
+                        isSearching = true
+                        stops = await ItineraryPlanner.discover(vibe: vibe, origin: origin, maxDistanceKm: maxDistanceKm)
+                        isSearching = false
+                        if stops.isEmpty {
+                            showingEmptyResultAlert = true
+                        }
                     }
                 } label: {
-                    Text("Generate Itinerary")
-                        .frame(maxWidth: .infinity)
-                        .fontWeight(.semibold)
+                    HStack {
+                        if isSearching {
+                            ProgressView().tint(.white)
+                        } else {
+                            Text("Generate Itinerary")
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .fontWeight(.semibold)
                 }
-                .disabled(store.memories.isEmpty)
+                .disabled(isSearching)
             } footer: {
-                Text("Only searches places you've already saved in the app — not a general directory of nearby businesses.")
+                Text("Searches real nearby places live via Apple Maps — not your saved places.")
             }
         }
         .alert("No Places Found", isPresented: $showingEmptyResultAlert) {
             Button("OK", role: .cancel) {}
         } message: {
-            Text("None of your saved places matched — within \(Int(maxDistanceKm)) km, this vibe, and your filters. Try a wider distance or a different vibe. Remember: this only searches places you've saved, not all nearby businesses.")
+            Text("Nothing matched within \(Int(maxDistanceKm)) km for this vibe. Try a wider distance or a different vibe.")
         }
     }
 
@@ -283,7 +272,7 @@ struct ItineraryPlannerView: View {
             } header: {
                 Text("\(vibe.rawValue) day · within \(Int(maxDistanceKm)) km · \(travelMode.rawValue)")
             } footer: {
-                Text("Stops are ordered from your current location. Tap a place to open it, or tap the directions icon to get there by \(travelMode.rawValue.lowercased()).")
+                Text("Stops are ordered from your current location. Tap a place for details, or tap the directions icon to get there by \(travelMode.rawValue.lowercased()).")
             }
         }
     }
@@ -315,7 +304,7 @@ private struct ItineraryStopRow: View {
                     if isRevealed {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 6) {
-                                Text(stop.memory.name)
+                                Text(stop.place.name)
                                     .font(.headline)
                                     .foregroundStyle(.primary)
                                 if stop.isMysteryStop {
@@ -324,7 +313,7 @@ private struct ItineraryStopRow: View {
                                         .foregroundStyle(.purple)
                                 }
                             }
-                            Text(stop.memory.category.rawValue)
+                            Text(stop.place.category.rawValue)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -364,30 +353,104 @@ private struct ItineraryStopRow: View {
             }
         }
         .sheet(isPresented: $showingDetail) {
-            MemoryDetailView(memoryID: stop.memory.id)
+            DiscoveredPlaceDetailSheet(place: stop.place, travelMode: travelMode)
                 .environmentObject(store)
         }
     }
 
     private func openDirections() {
-        let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: stop.memory.coordinate))
-        mapItem.name = stop.memory.name
+        let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: stop.place.coordinate))
+        mapItem.name = stop.place.name
         mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: travelMode.launchDirectionsModeKey])
     }
 
     private var stepNumber: some View {
         ZStack {
             Circle()
-                .fill(stop.isMysteryStop ? Color.purple.opacity(0.15) : stop.memory.category.color.opacity(0.15))
+                .fill(stop.isMysteryStop ? Color.purple.opacity(0.15) : stop.place.category.color.opacity(0.15))
                 .frame(width: 32, height: 32)
             if isRevealed {
                 Text("\(index)")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(stop.isMysteryStop ? .purple : stop.memory.category.color)
+                    .foregroundStyle(stop.isMysteryStop ? .purple : stop.place.category.color)
             } else {
                 Image(systemName: "questionmark")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.purple)
+            }
+        }
+    }
+}
+
+/// Detail sheet for a place found via live search — not a saved TravelMemory,
+/// so this shows only what MapKit's listing provides, plus a way to actually
+/// save it into the user's own places.
+private struct DiscoveredPlaceDetailSheet: View {
+    let place: DiscoveredPlace
+    let travelMode: ItineraryTravelMode
+    @EnvironmentObject var store: MemoryStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var didSave = false
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack {
+                        Image(systemName: place.category.icon)
+                            .foregroundStyle(place.category.color)
+                        Text(place.category.rawValue)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let address = place.address {
+                        Label(address, systemImage: "mappin.and.ellipse")
+                    }
+                    if let phoneNumber = place.phoneNumber, let url = URL(string: "tel:\(phoneNumber.filter { $0.isNumber || $0 == "+" })") {
+                        Link(destination: url) {
+                            Label(phoneNumber, systemImage: "phone.fill")
+                        }
+                    }
+                    if let website = place.website, let url = URL(string: website) {
+                        Link(destination: url) {
+                            Label(website, systemImage: "globe")
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
+                    }
+                }
+
+                Section {
+                    Button {
+                        let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: place.coordinate))
+                        mapItem.name = place.name
+                        mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: travelMode.launchDirectionsModeKey])
+                    } label: {
+                        Label("Get Directions", systemImage: travelMode.icon)
+                    }
+
+                    Button {
+                        store.add(TravelMemory(
+                            name: place.name,
+                            latitude: place.coordinate.latitude,
+                            longitude: place.coordinate.longitude,
+                            category: place.category,
+                            address: place.address,
+                            website: place.website,
+                            phoneNumber: place.phoneNumber
+                        ))
+                        didSave = true
+                    } label: {
+                        Label(didSave ? "Saved to My Places" : "Save to My Places", systemImage: didSave ? "checkmark.circle.fill" : "plus.circle")
+                    }
+                    .disabled(didSave)
+                }
+            }
+            .navigationTitle(place.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { dismiss() }
+                }
             }
         }
     }
