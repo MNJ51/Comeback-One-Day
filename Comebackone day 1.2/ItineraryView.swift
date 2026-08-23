@@ -165,6 +165,8 @@ struct ItineraryPlannerView: View {
 
     @State private var vibe: ItineraryVibe = .relaxed
     @State private var glutenFreeOnly = false
+    @State private var maxDistanceKm: Double = 3
+    @State private var travelMode: ItineraryTravelMode = .walking
     @State private var stops: [ItineraryStop] = []
     @State private var hasGenerated = false
 
@@ -211,6 +213,24 @@ struct ItineraryPlannerView: View {
                 .labelsHidden()
             }
 
+            Section("How far") {
+                Picker("Distance from you", selection: $maxDistanceKm) {
+                    ForEach([1.0, 2.0, 3.0, 4.0, 5.0], id: \.self) { km in
+                        Text("\(Int(km)) km").tag(km)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
+            Section("Getting around") {
+                Picker("Travel mode", selection: $travelMode) {
+                    ForEach(ItineraryTravelMode.allCases) { mode in
+                        Label(mode.rawValue, systemImage: mode.icon).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
             Section {
                 Toggle("Gluten Free Restaurants Only", isOn: $glutenFreeOnly)
             } footer: {
@@ -219,7 +239,13 @@ struct ItineraryPlannerView: View {
 
             Section {
                 Button {
-                    stops = ItineraryPlanner.generate(from: store.memories, vibe: vibe, origin: origin, glutenFreeOnly: glutenFreeOnly)
+                    stops = ItineraryPlanner.generate(
+                        from: store.memories,
+                        vibe: vibe,
+                        origin: origin,
+                        maxDistanceKm: maxDistanceKm,
+                        glutenFreeOnly: glutenFreeOnly
+                    )
                     hasGenerated = true
                 } label: {
                     Text("Generate Itinerary")
@@ -229,7 +255,7 @@ struct ItineraryPlannerView: View {
                 .disabled(store.memories.isEmpty)
             } footer: {
                 if hasGenerated && stops.isEmpty {
-                    Text("Couldn't find enough saved places nearby to build a day out of.")
+                    Text("Couldn't find enough saved places within \(Int(maxDistanceKm)) km to build a day out of. Try a wider distance.")
                 } else if store.memories.isEmpty {
                     Text("Save a few places first, then come back to plan a day.")
                 }
@@ -241,12 +267,12 @@ struct ItineraryPlannerView: View {
         List {
             Section {
                 ForEach(Array(stops.enumerated()), id: \.element.id) { index, stop in
-                    ItineraryStopRow(stop: stop, index: index + 1, store: store)
+                    ItineraryStopRow(stop: stop, index: index + 1, store: store, travelMode: travelMode)
                 }
             } header: {
-                Text(vibe.rawValue + " day")
+                Text("\(vibe.rawValue) day · within \(Int(maxDistanceKm)) km · \(travelMode.rawValue)")
             } footer: {
-                Text("Stops are ordered from your current location. Tap a place to open it, or get directions to it directly.")
+                Text("Stops are ordered from your current location. Tap a place to open it, or tap the directions icon to get there by \(travelMode.rawValue.lowercased()).")
             }
         }
     }
@@ -256,6 +282,7 @@ private struct ItineraryStopRow: View {
     let stop: ItineraryStop
     let index: Int
     let store: MemoryStore
+    let travelMode: ItineraryTravelMode
 
     @State private var mysteryRevealed = false
     @State private var showingDetail = false
@@ -263,57 +290,78 @@ private struct ItineraryStopRow: View {
     private var isRevealed: Bool { !stop.isMysteryStop || mysteryRevealed }
 
     var body: some View {
-        Button {
-            if stop.isMysteryStop, !mysteryRevealed {
-                withAnimation { mysteryRevealed = true }
-            } else {
-                showingDetail = true
-            }
-        } label: {
-            HStack(spacing: 12) {
-                stepNumber
-
-                if isRevealed {
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 6) {
-                            Text(stop.memory.name)
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                            if stop.isMysteryStop {
-                                Image(systemName: "gift.fill")
-                                    .font(.caption)
-                                    .foregroundStyle(.purple)
-                            }
-                        }
-                        Text(stop.memory.category.rawValue)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+        HStack(spacing: 12) {
+            Button {
+                if stop.isMysteryStop, !mysteryRevealed {
+                    withAnimation { mysteryRevealed = true }
                 } else {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Mystery Stop")
-                            .font(.headline)
-                            .foregroundStyle(.purple)
-                        Text("Tap to reveal")
+                    showingDetail = true
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    stepNumber
+
+                    if isRevealed {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Text(stop.memory.name)
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                if stop.isMysteryStop {
+                                    Image(systemName: "gift.fill")
+                                        .font(.caption)
+                                        .foregroundStyle(.purple)
+                                }
+                            }
+                            Text(stop.memory.category.rawValue)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Mystery Stop")
+                                .font(.headline)
+                                .foregroundStyle(.purple)
+                            Text("Tap to reveal")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    if isRevealed {
+                        Image(systemName: "chevron.right")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(.tertiary)
                     }
                 }
+            }
+            .buttonStyle(.plain)
 
-                Spacer()
-
-                if isRevealed {
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
+            if isRevealed {
+                Button {
+                    openDirections()
+                } label: {
+                    Image(systemName: travelMode.icon)
+                        .font(.title3)
+                        .foregroundStyle(.teal)
+                        .frame(width: 36, height: 36)
+                        .background(.teal.opacity(0.12), in: Circle())
                 }
+                .buttonStyle(.plain)
             }
         }
-        .buttonStyle(.plain)
         .sheet(isPresented: $showingDetail) {
             MemoryDetailView(memoryID: stop.memory.id)
                 .environmentObject(store)
         }
+    }
+
+    private func openDirections() {
+        let mapItem = MKMapItem(placemark: MKPlacemark(coordinate: stop.memory.coordinate))
+        mapItem.name = stop.memory.name
+        mapItem.openInMaps(launchOptions: [MKLaunchOptionsDirectionsModeKey: travelMode.launchDirectionsModeKey])
     }
 
     private var stepNumber: some View {

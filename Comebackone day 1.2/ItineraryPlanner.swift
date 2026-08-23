@@ -7,6 +7,7 @@
 //
 
 import CoreLocation
+import MapKit
 
 enum ItineraryVibe: String, CaseIterable, Identifiable {
     case relaxed = "Relaxed"
@@ -51,6 +52,31 @@ enum ItineraryVibe: String, CaseIterable, Identifiable {
     }
 }
 
+enum ItineraryTravelMode: String, CaseIterable, Identifiable {
+    case walking = "Walking"
+    case driving = "Driving"
+    case transit = "Public Transport"
+
+    var id: String { rawValue }
+
+    var icon: String {
+        switch self {
+        case .walking: return "figure.walk"
+        case .driving: return "car.fill"
+        case .transit: return "bus.fill"
+        }
+    }
+
+    /// The MapKit directions mode this maps to when opening Apple Maps.
+    var launchDirectionsModeKey: String {
+        switch self {
+        case .walking: return MKLaunchOptionsDirectionsModeWalking
+        case .driving: return MKLaunchOptionsDirectionsModeDriving
+        case .transit: return MKLaunchOptionsDirectionsModeTransit
+        }
+    }
+}
+
 struct ItineraryStop: Identifiable, Equatable {
     let memory: TravelMemory
     let isMysteryStop: Bool
@@ -67,13 +93,14 @@ enum ItineraryPlanner {
         vibe: ItineraryVibe,
         origin: CLLocationCoordinate2D,
         stopCount: Int = 4,
+        maxDistanceKm: Double = 5,
         glutenFreeOnly: Bool = false,
         using rng: inout RNG
     ) -> [ItineraryStop] {
-        let eligible = filterGlutenFree(memories, glutenFreeOnly: glutenFreeOnly)
-        guard !eligible.isEmpty, stopCount > 0 else { return [] }
-
         let originLocation = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
+        let withinRange = memories.filter { originLocation.distance(from: $0.clLocation) / 1000 <= maxDistanceKm }
+        let eligible = filterGlutenFree(withinRange, glutenFreeOnly: glutenFreeOnly)
+        guard !eligible.isEmpty, stopCount > 0 else { return [] }
 
         func score(_ memory: TravelMemory) -> Double {
             let vibeWeight = vibe.weight(for: memory.category)
@@ -112,10 +139,11 @@ enum ItineraryPlanner {
         vibe: ItineraryVibe,
         origin: CLLocationCoordinate2D,
         stopCount: Int = 4,
+        maxDistanceKm: Double = 5,
         glutenFreeOnly: Bool = false
     ) -> [ItineraryStop] {
         var rng = SystemRandomNumberGenerator()
-        return generate(from: memories, vibe: vibe, origin: origin, stopCount: stopCount, glutenFreeOnly: glutenFreeOnly, using: &rng)
+        return generate(from: memories, vibe: vibe, origin: origin, stopCount: stopCount, maxDistanceKm: maxDistanceKm, glutenFreeOnly: glutenFreeOnly, using: &rng)
     }
 
     /// Keeps every non-food place as-is; when `glutenFreeOnly` is on, food-related

@@ -498,6 +498,7 @@ struct ItineraryPlannerTests {
             vibe: .relaxed,
             origin: origin,
             stopCount: 2,
+            maxDistanceKm: 10,
             using: &rng
         )
 
@@ -536,6 +537,24 @@ struct ItineraryPlannerTests {
         let stops = ItineraryPlanner.generate(from: [hotel, location], vibe: .relaxed, origin: origin, stopCount: 3, glutenFreeOnly: true)
         let names = Set(stops.filter { !$0.isMysteryStop }.map(\.memory.name))
         #expect(names == ["Hotel", "Location"])
+    }
+
+    @Test func generateExcludesPlacesBeyondMaxDistance() {
+        let near = place("Near", lon: 0.01)   // ~1.1 km
+        let far = place("Far", lon: 0.05)     // ~5.6 km
+
+        let stops = ItineraryPlanner.generate(from: [near, far], vibe: .relaxed, origin: origin, stopCount: 3, maxDistanceKm: 2)
+        let names = stops.filter { !$0.isMysteryStop }.map(\.memory.name)
+        #expect(names == ["Near"])
+    }
+
+    @Test func generateDefaultMaxDistanceIsFiveKm() {
+        let near = place("Near", lon: 0.01)   // ~1.1 km
+        let veryFar = place("VeryFar", lon: 0.5) // ~55.7 km, well past the default
+
+        let stops = ItineraryPlanner.generate(from: [near, veryFar], vibe: .relaxed, origin: origin, stopCount: 3)
+        let names = stops.filter { !$0.isMysteryStop }.map(\.memory.name)
+        #expect(names == ["Near"])
     }
 
     @Test func glutenFreeOnlyOffIncludesEverything() {
