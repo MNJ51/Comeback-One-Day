@@ -521,6 +521,28 @@ struct ItineraryPlannerTests {
         #expect(ItineraryVibe.adventure.weight(for: .location) > ItineraryVibe.adventure.weight(for: .cafe))
     }
 
+    @Test func mysteryVibePrefersWishlistOverBeenThere() {
+        let wishlist = place("Wishlist", lon: 0.005, rating: 3, status: .wantToGo)
+        let beenThere = place("BeenThere", lon: 0.005, rating: 3, status: .beenThere)
+        let stops = ItineraryPlanner.generate(from: [wishlist, beenThere], vibe: .mystery, origin: origin, stopCount: 1)
+        #expect(stops.first?.memory.name == "Wishlist")
+    }
+
+    @Test func mysteryVibePrefersLowerRatedOverHigherRated() {
+        let lowRated = place("LowRated", lon: 0.005, rating: 1, status: .beenThere)
+        let highRated = place("HighRated", lon: 0.005, rating: 5, status: .beenThere)
+        let stops = ItineraryPlanner.generate(from: [lowRated, highRated], vibe: .mystery, origin: origin, stopCount: 1)
+        #expect(stops.first?.memory.name == "LowRated")
+    }
+
+    @Test func mysteryVibeIgnoresCategory() {
+        // Category shouldn't matter for .mystery — same rating/status/distance,
+        // different categories, should score identically (order is a tie).
+        let restaurant = place("Restaurant", lon: 0.005, category: .restaurant, rating: 3)
+        let hotel = place("Hotel", lon: 0.005, category: .hotel, rating: 3)
+        #expect(ItineraryVibe.mystery.score(for: restaurant, distanceKm: 1) == ItineraryVibe.mystery.score(for: hotel, distanceKm: 1))
+    }
+
     @Test func glutenFreeOnlyExcludesNonGlutenFreeFoodPlaces() {
         let glutenFreeCafe = place("GF Cafe", lon: 0.005, category: .cafe, isGlutenFree: true)
         let regularCafe = place("Regular Cafe", lon: 0.006, category: .cafe, isGlutenFree: false)

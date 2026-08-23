@@ -14,6 +14,10 @@ enum ItineraryVibe: String, CaseIterable, Identifiable {
     case adventure = "Adventure"
     case foodie = "Foodie"
     case culture = "Culture"
+    /// Not a category preference at all — deliberately favors wishlist places
+    /// and lower-rated, less-obvious picks over the usual best-and-nearest, so
+    /// the plan surfaces things you wouldn't normally put on an itinerary.
+    case mystery = "Mystery"
 
     var id: String { rawValue }
 
@@ -23,12 +27,14 @@ enum ItineraryVibe: String, CaseIterable, Identifiable {
         case .adventure: return "figure.hiking"
         case .foodie: return "fork.knife"
         case .culture: return "building.columns.fill"
+        case .mystery: return "questionmark.diamond.fill"
         }
     }
 
     /// How well a place category fits this vibe. Every category still scores
     /// above zero so nothing is hard-excluded — a great-rated place just outside
-    /// the vibe can still make the cut.
+    /// the vibe can still make the cut. Not used for .mystery, which ignores
+    /// category entirely — see score(for:distanceKm:).
     func weight(for category: Category) -> Double {
         switch (self, category) {
         case (.foodie, .restaurant): return 3
@@ -49,6 +55,21 @@ enum ItineraryVibe: String, CaseIterable, Identifiable {
 
         default: return 1
         }
+    }
+
+    /// Full scoring used to rank candidates, centralized here so both the main
+    /// route and the Mystery Stop pool use identical logic per vibe.
+    func score(for memory: TravelMemory, distanceKm: Double) -> Double {
+        let distancePenalty = distanceKm * 0.05
+        if self == .mystery {
+            let wishlistBoost = memory.visitStatus == .wantToGo ? 2.0 : 0.0
+            // Lower rating -> higher boost: favors the overlooked over the obvious.
+            let obscurityBoost = Double(5 - memory.rating) * 0.2
+            return wishlistBoost + obscurityBoost - distancePenalty
+        }
+        let vibeWeight = weight(for: memory.category)
+        let ratingBoost = Double(memory.rating) * 0.3
+        return vibeWeight + ratingBoost - distancePenalty
     }
 }
 
@@ -105,11 +126,8 @@ enum ItineraryPlanner {
         guard !eligible.isEmpty, stopCount > 0 else { return [] }
 
         func score(_ memory: TravelMemory) -> Double {
-            let vibeWeight = vibe.weight(for: memory.category)
-            let ratingBoost = Double(memory.rating) * 0.3
             let distanceKm = originLocation.distance(from: memory.clLocation) / 1000
-            let distancePenalty = distanceKm * 0.05
-            return vibeWeight + ratingBoost - distancePenalty
+            return vibe.score(for: memory, distanceKm: distanceKm)
         }
 
         let ranked = eligible.sorted { score($0) > score($1) }
@@ -178,10 +196,8 @@ enum ItineraryPlanner {
     ) -> [TravelMemory] {
         let originLocation = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
         func score(_ memory: TravelMemory) -> Double {
-            let vibeWeight = vibe.weight(for: memory.category)
-            let ratingBoost = Double(memory.rating) * 0.3
             let distanceKm = originLocation.distance(from: memory.clLocation) / 1000
-            return vibeWeight + ratingBoost - distanceKm * 0.05
+            return vibe.score(for: memory, distanceKm: distanceKm)
         }
 
         let routeIDs = Set(route.map(\.id))

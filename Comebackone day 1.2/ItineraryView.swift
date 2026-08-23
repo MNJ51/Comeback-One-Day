@@ -169,7 +169,7 @@ struct ItineraryPlannerView: View {
     @State private var maxDistanceKm: Double = 3
     @State private var travelMode: ItineraryTravelMode = .walking
     @State private var stops: [ItineraryStop] = []
-    @State private var hasGenerated = false
+    @State private var showingEmptyResultAlert = false
 
     private var origin: CLLocationCoordinate2D {
         locationManager.currentLocation ?? store.memories.first?.coordinate
@@ -216,7 +216,7 @@ struct ItineraryPlannerView: View {
 
             Section("How far") {
                 Picker("Distance from you", selection: $maxDistanceKm) {
-                    ForEach([1.0, 2.0, 3.0, 4.0, 5.0], id: \.self) { km in
+                    ForEach([1.0, 2.0, 3.0, 4.0, 5.0, 25.0], id: \.self) { km in
                         Text("\(Int(km)) km").tag(km)
                     }
                 }
@@ -254,7 +254,9 @@ struct ItineraryPlannerView: View {
                         glutenFreeOnly: glutenFreeOnly,
                         topRatedRestaurantsOnly: topRatedRestaurantsOnly
                     )
-                    hasGenerated = true
+                    if stops.isEmpty {
+                        showingEmptyResultAlert = true
+                    }
                 } label: {
                     Text("Generate Itinerary")
                         .frame(maxWidth: .infinity)
@@ -262,12 +264,13 @@ struct ItineraryPlannerView: View {
                 }
                 .disabled(store.memories.isEmpty)
             } footer: {
-                if hasGenerated && stops.isEmpty {
-                    Text("Couldn't find enough saved places within \(Int(maxDistanceKm)) km to build a day out of. Try a wider distance.")
-                } else if store.memories.isEmpty {
-                    Text("Save a few places first, then come back to plan a day.")
-                }
+                Text("Only searches places you've already saved in the app — not a general directory of nearby businesses.")
             }
+        }
+        .alert("No Places Found", isPresented: $showingEmptyResultAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("None of your saved places matched — within \(Int(maxDistanceKm)) km, this vibe, and your filters. Try a wider distance or a different vibe. Remember: this only searches places you've saved, not all nearby businesses.")
         }
     }
 
