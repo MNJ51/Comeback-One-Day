@@ -1,6 +1,9 @@
 # Xcode / macOS
 .DS_Store
 
+# API keys — see Secrets.swift.example for setup
+Comebackone day 1.2/Secrets.swift
+
 # Xcode user-specific state (per-developer, not project config)
 xcuserdata/
 *.xcuserstate
