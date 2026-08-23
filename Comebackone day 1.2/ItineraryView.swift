@@ -398,10 +398,32 @@ private struct DiscoveredPlaceDetailSheet: View {
     @EnvironmentObject var store: MemoryStore
     @Environment(\.dismiss) private var dismiss
     @State private var didSave = false
+    // MapKit doesn't expose photos for arbitrary businesses via the public
+    // API (no legitimate free source does), so a live map preview is the
+    // closest honest substitute for "a photo of the place."
+    @State private var previewCameraPosition: MapCameraPosition
+
+    init(place: DiscoveredPlace, travelMode: ItineraryTravelMode) {
+        self.place = place
+        self.travelMode = travelMode
+        _previewCameraPosition = State(initialValue: .region(MKCoordinateRegion(
+            center: place.coordinate,
+            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+        )))
+    }
 
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Map(position: $previewCameraPosition) {
+                        Marker(place.name, coordinate: place.coordinate)
+                    }
+                    .frame(height: 180)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .listRowInsets(EdgeInsets())
+                }
+
                 Section {
                     HStack {
                         Image(systemName: place.category.icon)
@@ -436,6 +458,12 @@ private struct DiscoveredPlaceDetailSheet: View {
                     }
 
                     Button {
+                        openReviewsSearch()
+                    } label: {
+                        Label("Find Reviews", systemImage: "star.bubble.fill")
+                    }
+
+                    Button {
                         store.add(TravelMemory(
                             name: place.name,
                             latitude: place.coordinate.latitude,
@@ -450,6 +478,8 @@ private struct DiscoveredPlaceDetailSheet: View {
                         Label(didSave ? "Saved to My Places" : "Save to My Places", systemImage: didSave ? "checkmark.circle.fill" : "plus.circle")
                     }
                     .disabled(didSave)
+                } footer: {
+                    Text("MapKit doesn't provide reviews directly, so this opens a TripAdvisor search for this place instead.")
                 }
             }
             .navigationTitle(place.name)
@@ -459,6 +489,21 @@ private struct DiscoveredPlaceDetailSheet: View {
                     Button("Close") { dismiss() }
                 }
             }
+        }
+    }
+
+    /// MapKit's public API doesn't provide reviews, so this opens a TripAdvisor
+    /// search for the place instead — same honest-workaround pattern already
+    /// used for saved places in MemoryDetailView.
+    private func openReviewsSearch() {
+        var query = place.name
+        if let address = place.address, !address.isEmpty {
+            query += " \(address)"
+        }
+        var components = URLComponents(string: "https://www.tripadvisor.com/Search")!
+        components.queryItems = [URLQueryItem(name: "q", value: query)]
+        if let url = components.url {
+            UIApplication.shared.open(url)
         }
     }
 }
