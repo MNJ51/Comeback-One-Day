@@ -67,6 +67,15 @@ final class SubscriptionManager: ObservableObject {
                 case .verified(let transaction):
                     print("🔍ITIN: purchase result = success/verified, productID=\(transaction.productID)")
                     await transaction.finish()
+                    // Trust this transaction directly rather than only relying on
+                    // a fresh Transaction.currentEntitlements query right after —
+                    // confirmed via logging that currentEntitlements can still
+                    // yield nothing for a moment immediately after a purchase
+                    // completes, which left isSubscribed stuck false despite a
+                    // genuinely successful, verified purchase.
+                    if transaction.productID == Self.itineraryPlusProductID {
+                        isSubscribed = true
+                    }
                 case .unverified(let transaction, let verificationError):
                     print("🔍ITIN: purchase result = success/UNVERIFIED, productID=\(transaction.productID), error=\(verificationError)")
                     purchaseError = "Purchase completed but couldn't be verified: \(verificationError.localizedDescription)"
@@ -105,7 +114,7 @@ final class SubscriptionManager: ObservableObject {
         }
     }
 
-    private func refreshEntitlement() async {
+    func refreshEntitlement() async {
         var subscribed = false
         var seenAny = false
         for await result in Transaction.currentEntitlements {
