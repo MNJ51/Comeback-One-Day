@@ -374,7 +374,7 @@ private struct ItineraryStopRow: View {
         }
         .task {
             guard thumbnail == nil, let website = stop.place.website, let url = URL(string: website) else { return }
-            thumbnail = await LinkPreviewImageLoader.image(for: url)
+            thumbnail = await LinkPreviewImageLoader.shared.image(for: url)
         }
     }
 
@@ -455,7 +455,7 @@ private struct DiscoveredPlaceDetailSheet: View {
                             .listRowInsets(EdgeInsets())
                     }
                     .task {
-                        heroImage = await LinkPreviewImageLoader.image(for: url)
+                        heroImage = await LinkPreviewImageLoader.shared.image(for: url)
                         heroImageLoadAttempted = true
                     }
                 }
