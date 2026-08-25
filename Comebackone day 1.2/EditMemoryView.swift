@@ -5,6 +5,7 @@
 
 import SwiftUI
 import PhotosUI
+import CoreTransferable
 
 struct EditMemoryView: View {
     @Environment(\.dismiss) var dismiss
@@ -28,6 +29,21 @@ struct EditMemoryView: View {
         }
     }
 
+    /// A video in the edit session: either one already on disk or a newly
+    /// picked/recorded clip still at its temporary source URL.
+    private struct EditableVideo: Identifiable, Equatable {
+        let id = UUID()
+        var filename: String?
+        var temporaryURL: URL?
+
+        var thumbnail: UIImage? {
+            if let temporaryURL {
+                return VideoStore.thumbnail(forTemporaryFileAt: temporaryURL, maxDimension: 160)
+            }
+            return VideoStore.thumbnail(for: filename, maxDimension: 160)
+        }
+    }
+
     @State private var name: String
     @State private var website: String
     @State private var phoneNumber: String
@@ -46,6 +62,12 @@ struct EditMemoryView: View {
     @State private var capturedImage: UIImage?
     @State private var showingReorderSheet = false
 
+    @State private var videos: [EditableVideo]
+    @State private var videoPickerItems: [PhotosPickerItem] = []
+    @State private var showingVideoCamera = false
+    @State private var capturedVideoURL: URL?
+    @State private var isSaving = false
+
     private let photoSize: CGFloat = 80
     private let photoSpacing: CGFloat = 10
 
@@ -61,6 +83,7 @@ struct EditMemoryView: View {
         _rating = State(initialValue: memory.rating)
         _notes = State(initialValue: memory.notes)
         _photos = State(initialValue: memory.photoFilenames.map { EditablePhoto(filename: $0, data: nil) })
+        _videos = State(initialValue: memory.videoFilenames.map { EditableVideo(filename: $0, temporaryURL: nil) })
         _tripName = State(initialValue: memory.tripName ?? "")
         _voiceNoteFilename = State(initialValue: memory.voiceNoteFilename)
     }
@@ -180,6 +203,31 @@ struct EditMemoryView: View {
                         }
                     }
                 }
+
+                Section("Videos") {
+                    if !videos.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: photoSpacing) {
+                                ForEach(videos) { video in
+                                    videoThumbnail(for: video)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+
+                    PhotosPicker(selection: $videoPickerItems, maxSelectionCount: 5, matching: .videos) {
+                        Label("Add Video", systemImage: "video.badge.plus")
+                    }
+
+                    if VideoCameraView.isAvailable {
+                        Button(action: {
+                            showingVideoCamera = true
+                        }) {
+                            Label("Take Video", systemImage: "video.fill")
+                        }
+                    }
+                }
             }
             .navigationTitle("Edit Memory")
             .navigationBarTitleDisplayMode(.inline)
@@ -197,9 +245,9 @@ struct EditMemoryView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        saveChanges()
+                        Task { await saveChanges() }
                     }
-                    .disabled(!canSave)
+                    .disabled(!canSave || isSaving)
                 }
             }
             .onChange(of: pickerItems) { _, newValue in
@@ -224,6 +272,26 @@ struct EditMemoryView: View {
             }
             .sheet(isPresented: $showingReorderSheet) {
                 PhotoReorderSheet(photos: $photos)
+            }
+            .onChange(of: videoPickerItems) { _, newValue in
+                guard !newValue.isEmpty else { return }
+                Task {
+                    for item in newValue {
+                        if let video = try? await item.loadTransferable(type: PickedVideo.self) {
+                            videos.append(EditableVideo(filename: nil, temporaryURL: video.url))
+                        }
+                    }
+                    videoPickerItems = []
+                }
+            }
+            .sheet(isPresented: $showingVideoCamera) {
+                VideoCameraView(videoURL: $capturedVideoURL)
+            }
+            .onChange(of: capturedVideoURL) { _, newValue in
+                if let url = newValue {
+                    videos.append(EditableVideo(filename: nil, temporaryURL: url))
+                    capturedVideoURL = nil
+                }
             }
         }
     }
@@ -273,7 +341,39 @@ struct EditMemoryView: View {
         }
     }
 
-    private func saveChanges() {
+    /// One video cell: the poster-frame thumbnail (or a placeholder if it
+    /// failed to load) and the remove button.
+    @ViewBuilder
+    private func videoThumbnail(for video: EditableVideo) -> some View {
+        ZStack {
+            if let thumbnail = video.thumbnail {
+                Image(uiImage: thumbnail)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Color.secondary.opacity(0.15)
+            }
+            Image(systemName: "play.circle.fill")
+                .font(.title2)
+                .foregroundStyle(.white, .black.opacity(0.4))
+        }
+        .frame(width: photoSize, height: photoSize)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(alignment: .topTrailing) {
+            Button(action: {
+                videos.removeAll { $0.id == video.id }
+            }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.white, .black.opacity(0.6))
+            }
+            .padding(4)
+        }
+    }
+
+    private func saveChanges() async {
+        isSaving = true
+        defer { isSaving = false }
         var updated = memory
         updated.name = name.trimmingCharacters(in: .whitespaces)
         updated.website = website.trimmedNonEmpty
@@ -307,6 +407,22 @@ struct EditMemoryView: View {
             }
             return nil
         }
+
+        // Remove files for videos the user deleted in this session.
+        let keptVideoFilenames = Set(videos.compactMap(\.filename))
+        let removedVideos = memory.videoFilenames.filter { !keptVideoFilenames.contains($0) }
+        VideoStore.delete(removedVideos)
+
+        // Compress and write newly added videos to disk, preserving display order.
+        var videoFilenames: [String] = []
+        for video in videos {
+            if let filename = video.filename {
+                videoFilenames.append(filename)
+            } else if let temporaryURL = video.temporaryURL, let filename = await VideoStore.save(temporaryURL) {
+                videoFilenames.append(filename)
+            }
+        }
+        updated.videoFilenames = videoFilenames
 
         store.update(updated)
         dismiss()

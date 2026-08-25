@@ -7,11 +7,73 @@ import SwiftUI
 import MapKit
 import PhotosUI
 import ImageIO
+import CoreTransferable
+import UniformTypeIdentifiers
 
 /// A photo chosen for a memory but not yet written to disk.
 struct PickedPhoto: Identifiable, Equatable {
     let id = UUID()
     let data: Data
+}
+
+/// A video chosen or recorded for a memory but not yet compressed and
+/// written to disk. Holds a temp file URL rather than raw Data — videos are
+/// too large to carry around in memory the way a photo's bytes can be.
+struct PickedVideo: Transferable, Identifiable, Equatable {
+    let id = UUID()
+    let url: URL
+
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(contentType: .movie) { video in
+            SentTransferredFile(video.url)
+        } importing: { received in
+            let copy = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".mov")
+            try? FileManager.default.removeItem(at: copy)
+            try FileManager.default.copyItem(at: received.file, to: copy)
+            return Self(url: copy)
+        }
+    }
+
+    static func == (lhs: PickedVideo, rhs: PickedVideo) -> Bool { lhs.id == rhs.id }
+}
+
+/// Horizontal strip of picked videos (shown as poster-frame thumbnails) with remove buttons.
+struct VideoStrip: View {
+    @Binding var videos: [PickedVideo]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(videos) { video in
+                    ZStack {
+                        if let thumbnail = VideoStore.thumbnail(forTemporaryFileAt: video.url, maxDimension: 80) {
+                            Image(uiImage: thumbnail)
+                                .resizable()
+                                .scaledToFill()
+                        } else {
+                            Color.secondary.opacity(0.15)
+                        }
+                        Image(systemName: "play.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(.white, .black.opacity(0.4))
+                    }
+                    .frame(width: 80, height: 80)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(alignment: .topTrailing) {
+                        Button(action: {
+                            videos.removeAll { $0.id == video.id }
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(.white, .black.opacity(0.6))
+                        }
+                        .padding(4)
+                    }
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
 }
 
 /// Horizontal strip of picked photos with remove buttons.
@@ -103,6 +165,12 @@ struct AddMemoryView: View {
     @State private var showingCamera = false
     @State private var capturedImage: UIImage?
 
+    @State private var videoPickerItems: [PhotosPickerItem] = []
+    @State private var pickedVideos: [PickedVideo] = []
+    @State private var showingVideoCamera = false
+    @State private var capturedVideoURL: URL?
+    @State private var isSaving = false
+
     @State private var geoPhotoItem: PhotosPickerItem?
     @State private var showingNoPhotoLocationAlert = false
     @State private var suggestedPlace: SuggestedPlace?
@@ -180,6 +248,26 @@ struct AddMemoryView: View {
                     capturedImage = nil
                 }
             }
+            .onChange(of: videoPickerItems) { _, newValue in
+                guard !newValue.isEmpty else { return }
+                Task {
+                    for item in newValue {
+                        if let video = try? await item.loadTransferable(type: PickedVideo.self) {
+                            pickedVideos.append(video)
+                        }
+                    }
+                    videoPickerItems = []
+                }
+            }
+            .sheet(isPresented: $showingVideoCamera) {
+                VideoCameraView(videoURL: $capturedVideoURL)
+            }
+            .onChange(of: capturedVideoURL) { _, newValue in
+                if let url = newValue {
+                    pickedVideos.append(PickedVideo(url: url))
+                    capturedVideoURL = nil
+                }
+            }
             .onChange(of: geoPhotoItem) { _, newValue in
                 guard let newValue else { return }
                 Task {
@@ -212,9 +300,9 @@ struct AddMemoryView: View {
         }
         ToolbarItem(placement: .confirmationAction) {
             Button("Save") {
-                saveMemory()
+                Task { await saveMemory() }
             }
-            .disabled(!canSave)
+            .disabled(!canSave || isSaving)
         }
     }
 
@@ -303,6 +391,22 @@ struct AddMemoryView: View {
                 showingCamera = true
             }) {
                 Label("Take Photo", systemImage: "camera.fill")
+            }
+        }
+
+        if !pickedVideos.isEmpty {
+            VideoStrip(videos: $pickedVideos)
+        }
+
+        PhotosPicker(selection: $videoPickerItems, maxSelectionCount: 5, matching: .videos) {
+            Label("Add Video", systemImage: "video.badge.plus")
+        }
+
+        if VideoCameraView.isAvailable {
+            Button(action: {
+                showingVideoCamera = true
+            }) {
+                Label("Take Video", systemImage: "video.fill")
             }
         }
     }
@@ -491,10 +595,18 @@ struct AddMemoryView: View {
         )
     }
 
-    private func saveMemory() {
+    private func saveMemory() async {
         guard let coordinate = selectedCoordinate else { return }
+        isSaving = true
+        defer { isSaving = false }
 
         let filenames = pickedPhotos.compactMap { PhotoStore.save($0.data) }
+        var videoFilenames: [String] = []
+        for video in pickedVideos {
+            if let filename = await VideoStore.save(video.url) {
+                videoFilenames.append(filename)
+            }
+        }
 
         let newMemory = TravelMemory(
             name: name.trimmingCharacters(in: .whitespaces),
@@ -502,6 +614,7 @@ struct AddMemoryView: View {
             longitude: coordinate.longitude,
             category: category,
             photoFilenames: filenames,
+            videoFilenames: videoFilenames,
             address: selectedAddress,
             website: website.trimmedNonEmpty,
             phoneNumber: phoneNumber.trimmedNonEmpty,

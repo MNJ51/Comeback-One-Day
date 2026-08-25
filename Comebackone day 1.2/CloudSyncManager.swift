@@ -189,6 +189,8 @@ final class CloudSyncManager {
         record["dateVisited"] = memory.dateVisited
         record["photoFilenames"] = memory.photoFilenames
         record["photos"] = memory.photoFilenames.map { CKAsset(fileURL: PhotoStore.url(for: $0)) }
+        record["videoFilenames"] = memory.videoFilenames
+        record["videos"] = memory.videoFilenames.map { CKAsset(fileURL: VideoStore.url(for: $0)) }
         record["isReceivedFromShare"] = memory.isReceivedFromShare ? 1 : 0
         record["senderName"] = memory.senderName
         record["tripName"] = memory.tripName
@@ -220,6 +222,17 @@ final class CloudSyncManager {
             }
         }
 
+        // Copy downloaded video assets into the local video store.
+        let videoFilenames = record["videoFilenames"] as? [String] ?? []
+        let videoAssets = record["videos"] as? [CKAsset] ?? []
+        for (filename, asset) in zip(videoFilenames, videoAssets) {
+            let destination = VideoStore.url(for: filename)
+            if !FileManager.default.fileExists(atPath: destination.path),
+               let source = asset.fileURL {
+                try? FileManager.default.copyItem(at: source, to: destination)
+            }
+        }
+
         let voiceNoteFilename = record["voiceNoteFilename"] as? String
         if let voiceNoteFilename, let voiceAsset = record["voiceNote"] as? CKAsset {
             let destination = VoiceNoteStore.url(for: voiceNoteFilename)
@@ -236,6 +249,7 @@ final class CloudSyncManager {
             longitude: longitude,
             category: Category(rawValue: record["category"] as? String ?? "") ?? .location,
             photoFilenames: filenames,
+            videoFilenames: videoFilenames,
             address: record["address"] as? String,
             website: record["website"] as? String,
             phoneNumber: record["phoneNumber"] as? String,

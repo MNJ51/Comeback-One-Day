@@ -82,6 +82,28 @@ struct TravelMemoryCodingTests {
         #expect(memories[0].coverPhotoFilename == nil)
     }
 
+    @Test func missingVideoFilenamesDecodesToEmptyList() throws {
+        let json = """
+        [{
+            "id": "08D8A3C4-A65B-4119-876A-C7789A460D4F",
+            "name": "No Videos",
+            "latitude": 1,
+            "longitude": 2,
+            "category": "Hotel",
+            "dateAdded": 700000000.0
+        }]
+        """
+        let memories = try JSONDecoder().decode([TravelMemory].self, from: Data(json.utf8))
+        #expect(memories[0].videoFilenames.isEmpty)
+    }
+
+    @Test func videoFilenamesRoundTrip() throws {
+        let memory = TravelMemory(name: "Clip Test", latitude: 1, longitude: 2, category: .location, videoFilenames: ["a.mov", "b.mov"])
+        let data = try JSONEncoder().encode(memory)
+        let decoded = try JSONDecoder().decode(TravelMemory.self, from: data)
+        #expect(decoded.videoFilenames == ["a.mov", "b.mov"])
+    }
+
     @Test func missingIsReceivedFromShareDefaultsToFalse() throws {
         let json = """
         [{

@@ -48,6 +48,10 @@ struct MemoryDetailView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 15))
                         }
 
+                        if !memory.videoFilenames.isEmpty {
+                            SavedVideoStrip(filenames: memory.videoFilenames)
+                        }
+
                         VStack(alignment: .leading, spacing: 15) {
                             Text(memory.name)
                                 .font(.title)
@@ -353,6 +357,53 @@ struct MemoryDetailView: View {
             UIApplication.shared.open(url)
         }
     }
+}
+
+/// Horizontal strip of a saved memory's videos, shown as poster-frame
+/// thumbnails; tapping one opens it full-screen for playback.
+struct SavedVideoStrip: View {
+    let filenames: [String]
+    @State private var playingFilename: String?
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(filenames, id: \.self) { filename in
+                    Button {
+                        playingFilename = filename
+                    } label: {
+                        ZStack {
+                            if let thumbnail = VideoStore.thumbnail(for: filename, maxDimension: 140) {
+                                Image(uiImage: thumbnail)
+                                    .resizable()
+                                    .scaledToFill()
+                            } else {
+                                Color.secondary.opacity(0.15)
+                            }
+                            Image(systemName: "play.circle.fill")
+                                .font(.largeTitle)
+                                .foregroundStyle(.white, .black.opacity(0.4))
+                        }
+                        .frame(width: 140, height: 140)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal)
+        }
+        .fullScreenCover(item: Binding(
+            get: { playingFilename.map { VideoPlaybackItem(filename: $0) } },
+            set: { playingFilename = $0?.filename }
+        )) { item in
+            VideoPlayerView(url: VideoStore.url(for: item.filename))
+        }
+    }
+}
+
+private struct VideoPlaybackItem: Identifiable {
+    let filename: String
+    var id: String { filename }
 }
 
 /// Presents the system share sheet with arbitrary items (photo + text).

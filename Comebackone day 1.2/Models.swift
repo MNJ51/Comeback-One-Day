@@ -72,6 +72,8 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     var longitude: Double
     var category: Category
     var photoFilenames: [String]
+    /// Filenames of .mov files in VideoStore.
+    var videoFilenames: [String]
     var address: String?
     /// The business's website, as typed by the user (scheme optional).
     var website: String?
@@ -98,13 +100,14 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     /// when generating an itinerary, not shown as a separate map category.
     var isGlutenFree: Bool
 
-    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], address: String? = nil, website: String? = nil, phoneNumber: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil, isReceivedFromShare: Bool = false, senderName: String? = nil, tripName: String? = nil, voiceNoteFilename: String? = nil, visitStatus: VisitStatus = .beenThere, isGlutenFree: Bool = false) {
+    init(id: UUID = UUID(), name: String, latitude: Double, longitude: Double, category: Category, photoFilenames: [String] = [], videoFilenames: [String] = [], address: String? = nil, website: String? = nil, phoneNumber: String? = nil, rating: Int = 0, notes: String = "", dateAdded: Date = Date(), dateVisited: Date? = nil, isReceivedFromShare: Bool = false, senderName: String? = nil, tripName: String? = nil, voiceNoteFilename: String? = nil, visitStatus: VisitStatus = .beenThere, isGlutenFree: Bool = false) {
         self.id = id
         self.name = name
         self.latitude = latitude
         self.longitude = longitude
         self.category = category
         self.photoFilenames = photoFilenames
+        self.videoFilenames = videoFilenames
         self.address = address
         self.website = website
         self.phoneNumber = phoneNumber
@@ -137,7 +140,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, latitude, longitude, category, photoFilenames, photoFilename, address, website, phoneNumber, rating, notes, dateAdded, dateVisited, isReceivedFromShare, senderName, tripName, voiceNoteFilename, visitStatus, isGlutenFree
+        case id, name, latitude, longitude, category, photoFilenames, photoFilename, videoFilenames, address, website, phoneNumber, rating, notes, dateAdded, dateVisited, isReceivedFromShare, senderName, tripName, voiceNoteFilename, visitStatus, isGlutenFree
     }
 
     init(from decoder: Decoder) throws {
@@ -155,6 +158,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         } else {
             photoFilenames = []
         }
+        videoFilenames = try container.decodeIfPresent([String].self, forKey: .videoFilenames) ?? []
         address = try container.decodeIfPresent(String.self, forKey: .address)
         website = try container.decodeIfPresent(String.self, forKey: .website)
         phoneNumber = try container.decodeIfPresent(String.self, forKey: .phoneNumber)
@@ -178,6 +182,7 @@ struct TravelMemory: Identifiable, Codable, Equatable {
         try container.encode(longitude, forKey: .longitude)
         try container.encode(category, forKey: .category)
         try container.encode(photoFilenames, forKey: .photoFilenames)
+        try container.encode(videoFilenames, forKey: .videoFilenames)
         try container.encodeIfPresent(address, forKey: .address)
         try container.encodeIfPresent(website, forKey: .website)
         try container.encodeIfPresent(phoneNumber, forKey: .phoneNumber)
