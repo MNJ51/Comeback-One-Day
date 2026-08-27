@@ -519,3 +519,24 @@ struct ItineraryPlannerTests {
         #expect(ranked.map(\.name) == ["First", "Second"])
     }
 }
+
+struct JournalEntryCodingTests {
+    @Test func roundTripPreservesAllFields() throws {
+        let entry = JournalEntry(date: Date(timeIntervalSince1970: 800000000), text: "Great day exploring the old town.", linkedMemoryID: UUID())
+        let data = try JSONEncoder().encode(entry)
+        let decoded = try JSONDecoder().decode(JournalEntry.self, from: data)
+        #expect(decoded == entry)
+    }
+
+    @Test func linkedMemoryIDDefaultsToNil() {
+        let entry = JournalEntry(text: "No place linked today.")
+        #expect(entry.linkedMemoryID == nil)
+    }
+
+    @Test func roundTripWithoutLinkedMemoryPreservesNil() throws {
+        let entry = JournalEntry(text: "Just a quiet day.")
+        let data = try JSONEncoder().encode(entry)
+        let decoded = try JSONDecoder().decode(JournalEntry.self, from: data)
+        #expect(decoded.linkedMemoryID == nil)
+    }
+}

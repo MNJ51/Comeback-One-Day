@@ -9,6 +9,7 @@ import MapKit
 struct MemoryDetailView: View {
     let memoryID: UUID
     @EnvironmentObject var store: MemoryStore
+    @EnvironmentObject var journalStore: JournalStore
     @Environment(\.dismiss) var dismiss
 
     @State private var showingEdit = false
@@ -16,6 +17,8 @@ struct MemoryDetailView: View {
     @State private var showingShare = false
     @State private var showingPhotoViewer = false
     @State private var photoViewerStartIndex = 0
+    @State private var showingAddJournalEntry = false
+    @State private var selectedJournalEntry: JournalEntry?
 
     private var memory: TravelMemory? {
         store.memory(withID: memoryID)
@@ -145,6 +148,41 @@ struct MemoryDetailView: View {
                                     .padding(12)
                                     .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
                             }
+
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Text("Journal Entries")
+                                        .font(.headline)
+                                    Spacer()
+                                    Button {
+                                        showingAddJournalEntry = true
+                                    } label: {
+                                        Image(systemName: "plus.circle")
+                                    }
+                                }
+
+                                let linkedEntries = journalStore.entries(linkedTo: memory.id)
+                                if linkedEntries.isEmpty {
+                                    Text("No journal entries linked to this place yet.")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                } else {
+                                    ForEach(linkedEntries) { entry in
+                                        Button {
+                                            selectedJournalEntry = entry
+                                        } label: {
+                                            JournalEntryRow(entry: entry, linkedMemory: nil)
+                                        }
+                                        .buttonStyle(.plain)
+                                        if entry.id != linkedEntries.last?.id {
+                                            Divider()
+                                        }
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(12)
+                            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal)
@@ -247,6 +285,12 @@ struct MemoryDetailView: View {
                 }
                 .fullScreenCover(isPresented: $showingPhotoViewer) {
                     PhotoViewerView(filenames: memory.photoFilenames, currentIndex: photoViewerStartIndex)
+                }
+                .sheet(isPresented: $showingAddJournalEntry) {
+                    JournalEntryFormSheet(entry: nil, prefilledMemoryID: memory.id)
+                }
+                .sheet(item: $selectedJournalEntry) { entry in
+                    JournalEntryFormSheet(entry: entry)
                 }
                 .task(id: memoryID) {
                     await fetchAddressIfNeeded()

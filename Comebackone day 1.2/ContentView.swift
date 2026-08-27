@@ -11,10 +11,12 @@ import MapKit
 enum AppTab {
     case map
     case places
+    case journal
 }
 
 struct ContentView: View {
     @StateObject private var store = MemoryStore()
+    @StateObject private var journalStore = JournalStore()
     @StateObject private var locationManager = LocationManager()
     @StateObject private var subscriptionManager = SubscriptionManager()
     @Environment(\.scenePhase) private var scenePhase
@@ -33,6 +35,10 @@ struct ContentView: View {
                 MemoryListView()
                     .tag(AppTab.places)
                     .toolbar(.hidden, for: .tabBar)
+
+                JournalListView()
+                    .tag(AppTab.journal)
+                    .toolbar(.hidden, for: .tabBar)
             }
             .safeAreaInset(edge: .bottom) {
                 // Reserves room so list content doesn't sit behind the floating
@@ -47,12 +53,14 @@ struct ContentView: View {
             )
         }
         .environmentObject(store)
+        .environmentObject(journalStore)
         .environmentObject(locationManager)
         .environmentObject(subscriptionManager)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task {
                     await store.syncNow()
+                    await journalStore.syncNow()
                 }
             }
         }
@@ -109,6 +117,10 @@ struct BottomActionBar: View {
 
             tabButton(icon: "list.bullet", label: "Places", isSelected: selectedTab == .places) {
                 selectedTab = .places
+            }
+
+            tabButton(icon: "book.closed.fill", label: "Journal", isSelected: selectedTab == .journal) {
+                selectedTab = .journal
             }
 
             if CameraView.isAvailable {
