@@ -16,6 +16,7 @@
 		36244941F29B31497B3B2B62 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83A8F2D75B66D734F68EE167 /* Models.swift */; };
 		43922C3E5937A7283EA2B3C8 /* QuickCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30E96BCA507F20FD1A31CFE1 /* QuickCameraView.swift */; };
 		46D27D0D6E3EAF456A26F25D /* ItineraryPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFCDC2FB235CD59B43037AD7 /* ItineraryPlanner.swift */; };
+		CB9A7EE0F1F064D26712DC9E /* WeatherService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9785C3A2A8BD75296B34DEB /* WeatherService.swift */; };
 		9600B7A4F37D5B5E5E4D1F11 /* JournalModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C42184806992510E0F4D16A3 /* JournalModels.swift */; };
 		427957608DE48C87C01307B6 /* JournalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BC6076FCB175B342C78CB16 /* JournalStore.swift */; };
 		83F26420CA23432A0324285A /* JournalSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA55291EAA1269B96BEE543D /* JournalSyncManager.swift */; };
@@ -75,6 +76,7 @@
 		A382945467C54D16E2A21D96 /* PhotoStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoStore.swift; sourceTree = "<group>"; };
 		A52514A4A00C7613AFACBDD3 /* StarRatingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarRatingView.swift; sourceTree = "<group>"; };
 		AFCDC2FB235CD59B43037AD7 /* ItineraryPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItineraryPlanner.swift; sourceTree = "<group>"; };
+		D9785C3A2A8BD75296B34DEB /* WeatherService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherService.swift; sourceTree = "<group>"; };
 		C42184806992510E0F4D16A3 /* JournalModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalModels.swift; sourceTree = "<group>"; };
 		6BC6076FCB175B342C78CB16 /* JournalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalStore.swift; sourceTree = "<group>"; };
 		EA55291EAA1269B96BEE543D /* JournalSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalSyncManager.swift; sourceTree = "<group>"; };
@@ -174,6 +176,7 @@
 				6BC6076FCB175B342C78CB16 /* JournalStore.swift */,
 				EA55291EAA1269B96BEE543D /* JournalSyncManager.swift */,
 				B2C73F2ED49DE9189355BC92 /* JournalView.swift */,
+				D9785C3A2A8BD75296B34DEB /* WeatherService.swift */,
 				6E8C88C7F221D4F99983D630 /* VoiceNoteStore.swift */,
 				AFCDC2FB235CD59B43037AD7 /* ItineraryPlanner.swift */,
 				1E358645F6079EB064AEC65B /* LinkPreviewImageLoader.swift */,
@@ -345,6 +348,7 @@
 				7E7C7F5878DA5B6353D6B29A /* PhotoViewerView.swift in Sources */,
 				7EA0121ECFFC4B8A0BF526D3 /* VoiceNoteStore.swift in Sources */,
 				46D27D0D6E3EAF456A26F25D /* ItineraryPlanner.swift in Sources */,
+				CB9A7EE0F1F064D26712DC9E /* WeatherService.swift in Sources */,
 				9600B7A4F37D5B5E5E4D1F11 /* JournalModels.swift in Sources */,
 				427957608DE48C87C01307B6 /* JournalStore.swift in Sources */,
 				83F26420CA23432A0324285A /* JournalSyncManager.swift in Sources */,

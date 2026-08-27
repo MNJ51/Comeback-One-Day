@@ -539,4 +539,33 @@ struct JournalEntryCodingTests {
         let decoded = try JSONDecoder().decode(JournalEntry.self, from: data)
         #expect(decoded.linkedMemoryID == nil)
     }
+
+    @Test func roundTripPreservesPhotosVideosJournalNameLocationAndWeather() throws {
+        let entry = JournalEntry(
+            text: "Rainy day at the coast.",
+            photoFilenames: ["a.jpg", "b.jpg"],
+            videoFilenames: ["c.mov"],
+            journalName: "Travel",
+            latitude: -26.41,
+            longitude: 153.09,
+            locationLabel: "Noosa, QLD",
+            weatherTemperatureCelsius: 21.5,
+            weatherSymbolName: "cloud.rain.fill",
+            weatherDescription: "Rain"
+        )
+        let data = try JSONEncoder().encode(entry)
+        let decoded = try JSONDecoder().decode(JournalEntry.self, from: data)
+        #expect(decoded == entry)
+        #expect(decoded.coverPhotoFilename == "a.jpg")
+        #expect(decoded.coordinate?.latitude == -26.41)
+    }
+
+    @Test func mediaAndContextFieldsDefaultToEmptyOrNil() {
+        let entry = JournalEntry(text: "Nothing special.")
+        #expect(entry.photoFilenames.isEmpty)
+        #expect(entry.videoFilenames.isEmpty)
+        #expect(entry.journalName == nil)
+        #expect(entry.coordinate == nil)
+        #expect(entry.coverPhotoFilename == nil)
+    }
 }

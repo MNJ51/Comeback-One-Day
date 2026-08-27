@@ -91,6 +91,20 @@ class LocationSearchService: NSObject, ObservableObject {
         return formattedAddress(from: placemark)
     }
 
+    /// A short "City, Region" label for a coordinate — e.g. for a journal
+    /// entry's location tag, where a full street address is too much detail.
+    static func shortLabel(for coordinate: CLLocationCoordinate2D) async -> String? {
+        let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        guard let placemarks = try? await CLGeocoder().reverseGeocodeLocation(location),
+              let placemark = placemarks.first else {
+            return nil
+        }
+        let parts = [placemark.locality, placemark.administrativeArea]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
+    }
+
     /// Builds a single-line address from a placemark's components.
     private static func formattedAddress(from placemark: CLPlacemark) -> String? {
         let street = [placemark.subThoroughfare, placemark.thoroughfare]

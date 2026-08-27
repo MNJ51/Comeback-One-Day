@@ -167,7 +167,18 @@ final class JournalSyncManager {
 
         record["date"] = entry.date
         record["text"] = entry.text
+        record["photoFilenames"] = entry.photoFilenames
+        record["photos"] = entry.photoFilenames.map { CKAsset(fileURL: PhotoStore.url(for: $0)) }
+        record["videoFilenames"] = entry.videoFilenames
+        record["videos"] = entry.videoFilenames.map { CKAsset(fileURL: VideoStore.url(for: $0)) }
         record["linkedMemoryID"] = entry.linkedMemoryID?.uuidString
+        record["journalName"] = entry.journalName
+        record["latitude"] = entry.latitude
+        record["longitude"] = entry.longitude
+        record["locationLabel"] = entry.locationLabel
+        record["weatherTemperatureCelsius"] = entry.weatherTemperatureCelsius
+        record["weatherSymbolName"] = entry.weatherSymbolName
+        record["weatherDescription"] = entry.weatherDescription
         record["dateAdded"] = entry.dateAdded
         return record
     }
@@ -181,11 +192,41 @@ final class JournalSyncManager {
 
         systemFields[uuid] = encodeSystemFields(record)
 
+        // Copy downloaded photo/video assets into local storage.
+        let photoFilenames = record["photoFilenames"] as? [String] ?? []
+        let photoAssets = record["photos"] as? [CKAsset] ?? []
+        for (filename, asset) in zip(photoFilenames, photoAssets) {
+            let destination = PhotoStore.url(for: filename)
+            if !FileManager.default.fileExists(atPath: destination.path),
+               let source = asset.fileURL {
+                try? FileManager.default.copyItem(at: source, to: destination)
+            }
+        }
+
+        let videoFilenames = record["videoFilenames"] as? [String] ?? []
+        let videoAssets = record["videos"] as? [CKAsset] ?? []
+        for (filename, asset) in zip(videoFilenames, videoAssets) {
+            let destination = VideoStore.url(for: filename)
+            if !FileManager.default.fileExists(atPath: destination.path),
+               let source = asset.fileURL {
+                try? FileManager.default.copyItem(at: source, to: destination)
+            }
+        }
+
         let entry = JournalEntry(
             id: uuid,
             date: date,
             text: text,
+            photoFilenames: photoFilenames,
+            videoFilenames: videoFilenames,
             linkedMemoryID: (record["linkedMemoryID"] as? String).flatMap(UUID.init),
+            journalName: record["journalName"] as? String,
+            latitude: record["latitude"] as? Double,
+            longitude: record["longitude"] as? Double,
+            locationLabel: record["locationLabel"] as? String,
+            weatherTemperatureCelsius: record["weatherTemperatureCelsius"] as? Double,
+            weatherSymbolName: record["weatherSymbolName"] as? String,
+            weatherDescription: record["weatherDescription"] as? String,
             dateAdded: record["dateAdded"] as? Date ?? Date()
         )
         store?.applyRemoteSave(entry)

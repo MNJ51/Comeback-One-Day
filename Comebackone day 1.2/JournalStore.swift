@@ -38,6 +38,8 @@ final class JournalStore: ObservableObject {
     }
 
     func delete(_ entry: JournalEntry) {
+        PhotoStore.delete(entry.photoFilenames)
+        VideoStore.delete(entry.videoFilenames)
         entries.removeAll { $0.id == entry.id }
         sync?.queueDelete(entry.id)
     }
@@ -61,6 +63,10 @@ final class JournalStore: ObservableObject {
 
     func applyRemoteSave(_ entry: JournalEntry) {
         if let index = entries.firstIndex(where: { $0.id == entry.id }) {
+            let removedPhotos = entries[index].photoFilenames.filter { !entry.photoFilenames.contains($0) }
+            PhotoStore.delete(removedPhotos)
+            let removedVideos = entries[index].videoFilenames.filter { !entry.videoFilenames.contains($0) }
+            VideoStore.delete(removedVideos)
             entries[index] = entry
         } else {
             entries.append(entry)
@@ -68,7 +74,11 @@ final class JournalStore: ObservableObject {
     }
 
     func applyRemoteDelete(id: UUID) {
-        entries.removeAll { $0.id == id }
+        if let existing = entries.first(where: { $0.id == id }) {
+            PhotoStore.delete(existing.photoFilenames)
+            VideoStore.delete(existing.videoFilenames)
+            entries.removeAll { $0.id == id }
+        }
     }
 
     // MARK: - Persistence
