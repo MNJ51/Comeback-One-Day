@@ -27,8 +27,14 @@ struct ItineraryButton: View {
         Button {
             presentedSheet = subscriptionManager.isSubscribed ? .planner : .paywall
         } label: {
-            Image(systemName: "map")
+            // A plain "map" icon read as "show the map" — easy to mistake for
+            // the Map tab itself. wand.and.stars (the same icon used in the
+            // paywall this button leads to) reads as "generate something"
+            // instead, and the teal tint matches that screen's branding so
+            // the connection is visually obvious before you even tap it.
+            Label("Plan a Day", systemImage: "wand.and.stars")
         }
+        .tint(.teal)
         // .sheet(item:) re-invokes its content closure whenever the item's
         // identity changes — unlike .sheet(isPresented:) with branching content,
         // which in practice didn't reliably re-render when isSubscribed flipped
