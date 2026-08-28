@@ -9,6 +9,7 @@
 
 import SwiftUI
 import PhotosUI
+import CoreLocation
 
 struct JournalListView: View {
     @EnvironmentObject var journalStore: JournalStore
@@ -771,34 +772,106 @@ struct JournalEntryFormSheet: View {
 private struct LinkedPlacePicker: View {
     @Binding var selectedMemoryID: UUID?
     @EnvironmentObject var store: MemoryStore
+    @EnvironmentObject var locationManager: LocationManager
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
+    @State private var filterCategory: Category?
 
+    /// Every category actually in use, so the chip row only ever shows
+    /// choices that narrow something down.
+    private var availableCategories: [Category] {
+        Array(Set(store.memories.map(\.category))).sorted { $0.rawValue < $1.rawValue }
+    }
+
+    private var originLocation: CLLocation? {
+        locationManager.currentLocation.map { CLLocation(latitude: $0.latitude, longitude: $0.longitude) }
+    }
+
+    /// Nearest-first when location is available (the common case: "which of
+    /// my places is this near"), alphabetical otherwise.
     private var filteredMemories: [TravelMemory] {
+        var result = store.memories
+
+        if let filterCategory {
+            result = result.filter { $0.category == filterCategory }
+        }
+
         let query = searchText.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return store.memories }
-        return store.memories.filter { $0.name.localizedCaseInsensitiveContains(query) }
+        if !query.isEmpty {
+            result = result.filter { $0.name.localizedCaseInsensitiveContains(query) }
+        }
+
+        if let originLocation {
+            return result.sorted {
+                originLocation.distance(from: location(for: $0)) < originLocation.distance(from: location(for: $1))
+            }
+        }
+        return result.sorted { $0.name < $1.name }
+    }
+
+    private func location(for memory: TravelMemory) -> CLLocation {
+        CLLocation(latitude: memory.latitude, longitude: memory.longitude)
+    }
+
+    /// "1.2 km away" (or in meters, under 1 km) from the user's current
+    /// location — nil when location isn't available, so the row just
+    /// falls back to showing the name alone.
+    private func distanceLabel(for memory: TravelMemory) -> String? {
+        guard let originLocation else { return nil }
+        let distanceMeters = originLocation.distance(from: location(for: memory))
+        if distanceMeters < 1000 {
+            return "\(Int(distanceMeters)) m away"
+        }
+        return String(format: "%.1f km away", distanceMeters / 1000)
     }
 
     var body: some View {
         NavigationStack {
-            List(filteredMemories) { memory in
-                Button {
-                    selectedMemoryID = memory.id
-                    dismiss()
-                } label: {
-                    HStack {
-                        Image(systemName: memory.category.icon)
-                            .foregroundStyle(memory.category.color)
-                        Text(memory.name)
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        if selectedMemoryID == memory.id {
-                            Image(systemName: "checkmark")
-                                .foregroundStyle(.blue)
+            VStack(spacing: 0) {
+                if !availableCategories.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            FilterChip(title: "All", color: .gray, isSelected: filterCategory == nil) {
+                                filterCategory = nil
+                            }
+                            ForEach(availableCategories) { category in
+                                FilterChip(title: category.rawValue, color: category.color, isSelected: filterCategory == category) {
+                                    filterCategory = filterCategory == category ? nil : category
+                                }
+                            }
+                        }
+                        .padding(.horizontal)
+                        .padding(.vertical, 8)
+                    }
+                }
+
+                List(filteredMemories) { memory in
+                    Button {
+                        selectedMemoryID = memory.id
+                        dismiss()
+                    } label: {
+                        HStack {
+                            Image(systemName: memory.category.icon)
+                                .foregroundStyle(memory.category.color)
+                                .frame(width: 24)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(memory.name)
+                                    .foregroundStyle(.primary)
+                                if let distance = distanceLabel(for: memory) {
+                                    Text(distance)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            Spacer()
+                            if selectedMemoryID == memory.id {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(.blue)
+                            }
                         }
                     }
                 }
+                .listStyle(.plain)
             }
             .searchable(text: $searchText, prompt: "Search places")
             .navigationTitle("Link a Place")
