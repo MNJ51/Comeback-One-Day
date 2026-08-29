@@ -19,6 +19,18 @@ struct MemoryDetailView: View {
     @State private var photoViewerStartIndex = 0
     @State private var showingAddJournalEntry = false
     @State private var selectedJournalEntry: JournalEntry?
+    @State private var isPreparingTripAdvisorReview = false
+    @State private var tripAdvisorHandoff: TripAdvisorHandoff?
+
+    /// What gets handed off to TripAdvisor: the search URL, plus what was
+    /// copied to the clipboard so the confirmation alert can show it before
+    /// leaving the app — TripAdvisor has no API to pre-fill this for us.
+    private struct TripAdvisorHandoff: Identifiable {
+        let id = UUID()
+        let ratingText: String?
+        let notesPreview: String?
+        let url: URL
+    }
 
     private var memory: TravelMemory? {
         store.memory(withID: memoryID)
@@ -214,15 +226,22 @@ struct MemoryDetailView: View {
 
                         VStack(spacing: 8) {
                             Button {
-                                openTripAdvisorReview(for: memory)
+                                Task { await prepareTripAdvisorHandoff(for: memory) }
                             } label: {
-                                Label("Write a Review on TripAdvisor", systemImage: "star.bubble.fill")
-                                    .font(.headline)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(.green.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
-                                    .foregroundStyle(.green)
+                                HStack {
+                                    if isPreparingTripAdvisorReview {
+                                        ProgressView()
+                                    } else {
+                                        Label("Write a Review on TripAdvisor", systemImage: "star.bubble.fill")
+                                    }
+                                }
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(.green.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+                                .foregroundStyle(.green)
                             }
+                            .disabled(isPreparingTripAdvisorReview)
 
                             Text("Opens TripAdvisor's search for this place and copies your rating and notes so you can paste them into the review.")
                                 .font(.caption)
@@ -307,8 +326,32 @@ struct MemoryDetailView: View {
                 } message: {
                     Text("This memory and its photo will be removed.")
                 }
+                .alert(item: $tripAdvisorHandoff) { handoff in
+                    Alert(
+                        title: Text("Copied to Clipboard"),
+                        message: Text(handoffMessage(for: handoff)),
+                        primaryButton: .default(Text("Continue to TripAdvisor")) {
+                            UIApplication.shared.open(handoff.url)
+                        },
+                        secondaryButton: .cancel()
+                    )
+                }
             }
         }
+    }
+
+    private func handoffMessage(for handoff: TripAdvisorHandoff) -> String {
+        var lines: [String] = []
+        if let ratingText = handoff.ratingText {
+            lines.append(ratingText)
+        }
+        if let notesPreview = handoff.notesPreview {
+            lines.append(notesPreview)
+        }
+        guard !lines.isEmpty else {
+            return "Find the matching listing on TripAdvisor, then tap Write a Review."
+        }
+        return lines.joined(separator: "\n\n") + "\n\nPaste this into your review once you're on the right listing."
     }
 
     /// Items handed to the system share sheet: the cover photo (if any) plus text.
@@ -379,10 +422,17 @@ struct MemoryDetailView: View {
     // way for this (or any) third-party app to post one on the user's behalf.
     // The closest honest equivalent: land them on the right listing to write
     // it themselves, with their rating/notes copied so they're not retyping.
-    private func openTripAdvisorReview(for memory: TravelMemory) {
+    private func prepareTripAdvisorHandoff(for memory: TravelMemory) async {
+        isPreparingTripAdvisorReview = true
+        defer { isPreparingTripAdvisorReview = false }
+
         var clipboardLines: [String] = []
+        var ratingText: String?
         if memory.rating > 0 {
-            clipboardLines.append(String(repeating: "★", count: memory.rating))
+            let filled = String(repeating: "★", count: memory.rating)
+            let empty = String(repeating: "☆", count: 5 - memory.rating)
+            ratingText = filled + empty
+            clipboardLines.append(ratingText!)
         }
         if !memory.notes.isEmpty {
             clipboardLines.append(memory.notes)
@@ -391,15 +441,27 @@ struct MemoryDetailView: View {
             UIPasteboard.general.string = clipboardLines.joined(separator: "\n\n")
         }
 
+        // A short "Name, City" query matches how TripAdvisor's own listing
+        // titles read far more reliably than the full street address —
+        // Apple's geocoded street/postcode rarely matches TripAdvisor's own
+        // formatting, which was the actual cause of landing on the wrong
+        // (or no) result, not just a UX rough edge.
         var query = memory.name
-        if let address = memory.address, !address.isEmpty {
+        if let shortLabel = await LocationSearchService.shortLabel(for: memory.coordinate) {
+            query += ", \(shortLabel)"
+        } else if let address = memory.address, !address.isEmpty {
             query += " \(address)"
         }
+
         var components = URLComponents(string: "https://www.tripadvisor.com/Search")!
         components.queryItems = [URLQueryItem(name: "q", value: query)]
-        if let url = components.url {
-            UIApplication.shared.open(url)
-        }
+        guard let url = components.url else { return }
+
+        tripAdvisorHandoff = TripAdvisorHandoff(
+            ratingText: ratingText,
+            notesPreview: memory.notes.isEmpty ? nil : memory.notes,
+            url: url
+        )
     }
 }
 
