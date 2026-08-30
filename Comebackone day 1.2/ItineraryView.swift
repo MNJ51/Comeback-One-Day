@@ -175,9 +175,35 @@ struct ItineraryPlannerView: View {
     @State private var stops: [ItineraryStop] = []
     @State private var isSearching = false
     @State private var showingEmptyResultAlert = false
+    /// Flips true if we've been waiting for a GPS fix for a while — gives the
+    /// user an explicit, informed way out instead of a button that could
+    /// otherwise stay disabled forever if a fix never arrives (weak signal,
+    /// airplane mode, simulator with no location set, etc.).
+    @State private var locationTimedOut = false
+    @State private var userAcceptedFallbackLocation = false
+
+    private static let fallbackLocationTimeout: Duration = .seconds(8)
+    private static let fallbackCoordinate = CLLocationCoordinate2D(latitude: -27.4705, longitude: 153.0260)
 
     private var origin: CLLocationCoordinate2D {
-        locationManager.currentLocation ?? CLLocationCoordinate2D(latitude: -27.4705, longitude: 153.0260)
+        locationManager.currentLocation ?? Self.fallbackCoordinate
+    }
+
+    /// True while location access is authorized but we don't have a fix yet
+    /// (e.g. right after launch, or a weak signal indoors) — distinct from
+    /// isDenied. Generation is blocked in this state rather than silently
+    /// searching around the hardcoded fallback coordinate, which previously
+    /// meant a genuine GPS delay could search a city away from the user with
+    /// no indication anything was wrong. Once locationTimedOut fires, the
+    /// user can explicitly opt into the fallback instead of being stuck.
+    private var isWaitingForLocation: Bool {
+        locationManager.currentLocation == nil
+            && !locationManager.isDenied
+            && !(locationTimedOut && userAcceptedFallbackLocation)
+    }
+
+    private var canGenerate: Bool {
+        !isSearching && !isWaitingForLocation
     }
 
     var body: some View {
@@ -203,15 +229,49 @@ struct ItineraryPlannerView: View {
                     }
                 }
             }
+            .task(id: locationManager.currentLocation == nil) {
+                guard locationManager.currentLocation == nil, !locationManager.isDenied else { return }
+                try? await Task.sleep(for: Self.fallbackLocationTimeout)
+                guard !Task.isCancelled else { return }
+                locationTimedOut = true
+            }
         }
     }
 
     private var setupView: some View {
         Form {
-            if locationManager.isDenied {
+            if isWaitingForLocation, locationTimedOut {
                 Section {
-                    Label("Location access is off, so this searches near a default location instead of where you actually are. Enable it in Settings for accurate results.", systemImage: "location.slash.fill")
+                    Label("Still no location after a few seconds — check you have a clear view of the sky, or Wi-Fi/cellular is on.", systemImage: "location.slash.fill")
                         .foregroundStyle(.orange)
+                    Button("Search Near a Default Location Instead") {
+                        userAcceptedFallbackLocation = true
+                    }
+                }
+            } else if isWaitingForLocation {
+                Section {
+                    HStack {
+                        ProgressView()
+                        Text("Finding your location…")
+                            .foregroundStyle(.secondary)
+                    }
+                } footer: {
+                    Text("Generating needs your current location to search nearby places — this should only take a moment. Make sure Location Services is on.")
+                }
+            } else if locationManager.currentLocation == nil {
+                // Either denied outright, or the user explicitly accepted the
+                // fallback after a timeout — either way, results are for a
+                // default location, not where they actually are, and that
+                // needs to stay visible rather than disappear the moment
+                // generation becomes possible.
+                Section {
+                    if locationManager.isDenied {
+                        Label("Location access is off, so this searches near a default location instead of where you actually are. Enable it in Settings for accurate results.", systemImage: "location.slash.fill")
+                            .foregroundStyle(.orange)
+                    } else {
+                        Label("Still couldn't get your location, so this is searching near a default location instead of where you actually are.", systemImage: "location.slash.fill")
+                            .foregroundStyle(.orange)
+                    }
                 }
             }
 
@@ -264,7 +324,7 @@ struct ItineraryPlannerView: View {
                     .frame(maxWidth: .infinity)
                     .fontWeight(.semibold)
                 }
-                .disabled(isSearching)
+                .disabled(!canGenerate)
             } footer: {
                 Text("Searches real nearby places live via Apple Maps — not your saved places.")
             }
@@ -285,7 +345,11 @@ struct ItineraryPlannerView: View {
             } header: {
                 Text("\(vibe.rawValue) day · within \(Int(maxDistanceKm)) km · \(travelMode.rawValue)")
             } footer: {
-                Text("Stops are ordered from your current location. Tap a place for details, or tap the directions icon to get there by \(travelMode.rawValue.lowercased()).")
+                if locationManager.currentLocation == nil {
+                    Text("⚠️ Searched near a default location, not where you actually are — your device's real location wasn't available. Tap a place for details, or tap the directions icon to get there by \(travelMode.rawValue.lowercased()).")
+                } else {
+                    Text("Stops are ordered from your current location. Tap a place for details, or tap the directions icon to get there by \(travelMode.rawValue.lowercased()).")
+                }
             }
         }
     }
