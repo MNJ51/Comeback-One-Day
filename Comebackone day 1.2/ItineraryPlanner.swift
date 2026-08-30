@@ -15,6 +15,7 @@ import MapKit
 
 enum ItineraryVibe: String, CaseIterable, Identifiable {
     case relaxed = "Relaxed"
+    case cafe = "Cafe"
     case adventure = "Adventure"
     case foodie = "Foodie"
     case culture = "Culture"
@@ -27,7 +28,8 @@ enum ItineraryVibe: String, CaseIterable, Identifiable {
 
     var icon: String {
         switch self {
-        case .relaxed: return "cup.and.saucer.fill"
+        case .relaxed: return "leaf.fill"
+        case .cafe: return "cup.and.saucer.fill"
         case .adventure: return "figure.hiking"
         case .foodie: return "fork.knife"
         case .culture: return "building.columns.fill"
@@ -37,10 +39,14 @@ enum ItineraryVibe: String, CaseIterable, Identifiable {
 
     /// The MapKit categories searched for this vibe. Every case here is a
     /// confirmed MKPointOfInterestCategory member available on iOS 18.
+    /// Kept tight and category-pure on purpose — Cafe only searches cafes,
+    /// not a grab-bag that happens to include a couple of coffee shops.
     var mapKitCategories: [MKPointOfInterestCategory] {
         switch self {
         case .relaxed:
-            return [.cafe, .park, .beach, .spa, .winery, .nightlife]
+            return [.park, .beach, .spa, .winery, .nightlife]
+        case .cafe:
+            return [.cafe, .bakery]
         case .adventure:
             return [.park, .nationalPark, .hiking, .campground, .marina, .beach, .kayaking, .surfing, .rockClimbing]
         case .foodie:
@@ -107,18 +113,21 @@ enum ItineraryPlanner {
     /// Searches real nearby places live via MapKit and builds a day out of the
     /// best matches for the vibe (see `rank`), plus (for non-Mystery vibes)
     /// one bonus stop from the offbeat Mystery pool, revealed only when tapped.
+    /// Defaults to a full day (9 stops + 1 Mystery bonus = 10) rather than a
+    /// quick handful — this is the paid tier, it should feel like a full day
+    /// out, not a snack.
     static func discover(
         vibe: ItineraryVibe,
         origin: CLLocationCoordinate2D,
         maxDistanceKm: Double,
-        stopCount: Int = 4
+        stopCount: Int = 9
     ) async -> [ItineraryStop] {
         guard stopCount > 0 else { return [] }
         let radiusMeters = min(maxDistanceKm * 1000, 50_000)
 
         let mainResults = await search(categories: vibe.mapKitCategories, center: origin, radius: radiusMeters)
         var seenNames = Set<String>()
-        let ranked = rank(mainResults)
+        let ranked = rank(mainResults, from: origin)
             .filter { seenNames.insert($0.name.lowercased()).inserted }
         let picks = Array(ranked.prefix(stopCount))
 
@@ -127,7 +136,7 @@ enum ItineraryPlanner {
         if vibe != .mystery {
             let mysteryResults = await search(categories: mysteryCategoryPool, center: origin, radius: radiusMeters)
             let usedNames = Set(picks.map { $0.name.lowercased() })
-            if let mystery = rank(mysteryResults)
+            if let mystery = rank(mysteryResults, from: origin)
                 .first(where: { !usedNames.contains($0.name.lowercased()) }) {
                 stops.append(ItineraryStop(place: mystery, isMysteryStop: true))
             }
@@ -139,17 +148,18 @@ enum ItineraryPlanner {
     /// MapKit exposes no rating or popularity signal for arbitrary businesses,
     /// so "top" here means the best free proxy available: a verifiable,
     /// established business (has a website and a phone number) ranks above a
-    /// bare pin, with Apple's own search-relevance order (the order results
-    /// came back in) as the stable tiebreak.
-    static func rank(_ places: [DiscoveredPlace]) -> [DiscoveredPlace] {
-        places.enumerated()
-            .sorted { lhs, rhs in
-                let lhsScore = establishmentScore(lhs.element)
-                let rhsScore = establishmentScore(rhs.element)
-                if lhsScore != rhsScore { return lhsScore > rhsScore }
-                return lhs.offset < rhs.offset
-            }
-            .map(\.element)
+    /// bare pin, and — within the same tier — the closer one wins. That
+    /// second part matters: it's what makes the distance picker actually
+    /// change the results instead of just changing the search radius while
+    /// the same handful of places keep winning regardless.
+    static func rank(_ places: [DiscoveredPlace], from origin: CLLocationCoordinate2D) -> [DiscoveredPlace] {
+        let originLocation = CLLocation(latitude: origin.latitude, longitude: origin.longitude)
+        return places.sorted { lhs, rhs in
+            let lhsScore = establishmentScore(lhs)
+            let rhsScore = establishmentScore(rhs)
+            if lhsScore != rhsScore { return lhsScore > rhsScore }
+            return originLocation.distance(from: lhs.clLocation) < originLocation.distance(from: rhs.clLocation)
+        }
     }
 
     private static func establishmentScore(_ place: DiscoveredPlace) -> Int {
@@ -192,4 +202,8 @@ extension Category {
         default: return .location
         }
     }
+}
+
+private extension DiscoveredPlace {
+    var clLocation: CLLocation { CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude) }
 }

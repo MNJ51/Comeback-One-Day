@@ -468,6 +468,15 @@ struct ItineraryPlannerTests {
         #expect(categories.contains(.foodMarket))
     }
 
+    @Test func cafeVibeSearchesOnlyCafeCategories() {
+        let categories = ItineraryVibe.cafe.mapKitCategories
+        #expect(categories.contains(.cafe))
+        #expect(!categories.contains(.park))
+        #expect(!categories.contains(.spa))
+        #expect(!categories.contains(.nightlife))
+        #expect(!categories.contains(.restaurant))
+    }
+
     @Test func adventureSearchesOutdoorCategories() {
         let categories = ItineraryVibe.adventure.mapKitCategories
         #expect(categories.contains(.park))
@@ -502,21 +511,23 @@ struct ItineraryPlannerTests {
 
     // MapKit exposes no rating, so "top" places are ranked by a free proxy:
     // having both a website and phone number (a verifiable, established
-    // business), falling back to MapKit's own relevance order as a tiebreak.
+    // business), and — within the same tier — whichever is closer.
     @Test func rankPrefersPlacesWithWebsiteAndPhoneOverBarePins() {
-        let coordinate = CLLocationCoordinate2D(latitude: -26.41, longitude: 153.09)
-        let barePin = DiscoveredPlace(name: "Bare Pin", category: .location, coordinate: coordinate, address: nil, phoneNumber: nil, website: nil)
-        let established = DiscoveredPlace(name: "Established Cafe", category: .cafe, coordinate: coordinate, address: nil, phoneNumber: "0712345678", website: "https://example.com")
-        let ranked = ItineraryPlanner.rank([barePin, established])
+        let origin = CLLocationCoordinate2D(latitude: -26.41, longitude: 153.09)
+        let barePin = DiscoveredPlace(name: "Bare Pin", category: .location, coordinate: origin, address: nil, phoneNumber: nil, website: nil)
+        let established = DiscoveredPlace(name: "Established Cafe", category: .cafe, coordinate: origin, address: nil, phoneNumber: "0712345678", website: "https://example.com")
+        let ranked = ItineraryPlanner.rank([barePin, established], from: origin)
         #expect(ranked.first?.name == "Established Cafe")
     }
 
-    @Test func rankPreservesOriginalOrderWithinTheSameEstablishmentScore() {
-        let coordinate = CLLocationCoordinate2D(latitude: -26.41, longitude: 153.09)
-        let first = DiscoveredPlace(name: "First", category: .location, coordinate: coordinate, address: nil, phoneNumber: nil, website: nil)
-        let second = DiscoveredPlace(name: "Second", category: .location, coordinate: coordinate, address: nil, phoneNumber: nil, website: nil)
-        let ranked = ItineraryPlanner.rank([first, second])
-        #expect(ranked.map(\.name) == ["First", "Second"])
+    @Test func rankPrefersCloserPlaceWithinTheSameEstablishmentScore() {
+        let origin = CLLocationCoordinate2D(latitude: -26.41, longitude: 153.09)
+        let near = CLLocationCoordinate2D(latitude: -26.411, longitude: 153.09)
+        let far = CLLocationCoordinate2D(latitude: -26.50, longitude: 153.09)
+        let nearPlace = DiscoveredPlace(name: "Near", category: .location, coordinate: near, address: nil, phoneNumber: nil, website: nil)
+        let farPlace = DiscoveredPlace(name: "Far", category: .location, coordinate: far, address: nil, phoneNumber: nil, website: nil)
+        let ranked = ItineraryPlanner.rank([farPlace, nearPlace], from: origin)
+        #expect(ranked.map(\.name) == ["Near", "Far"])
     }
 }
 

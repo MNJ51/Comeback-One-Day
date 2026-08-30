@@ -83,10 +83,10 @@ struct PaywallView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 14) {
-                    featureRow(icon: "wand.and.stars", text: "Real nearby places, found live via Apple Maps")
-                    featureRow(icon: "slider.horizontal.3", text: "Pick a vibe — Relaxed, Adventure, Foodie, Culture, or Mystery")
+                    featureRow(icon: "wand.and.stars", text: "A full day out — up to 10 stops, not a quick handful")
+                    featureRow(icon: "slider.horizontal.3", text: "Pick a vibe — Relaxed, Cafe, Adventure, Foodie, Culture, or Mystery")
                     featureRow(icon: "gift.fill", text: "A Mystery Stop from an offbeat category, revealed on the day")
-                    featureRow(icon: "point.topleft.down.curvedto.point.bottomright.up", text: "Stops ordered into a sensible route from where you are")
+                    featureRow(icon: "point.topleft.down.curvedto.point.bottomright.up", text: "Real nearby places, closest good matches first")
                 }
                 .padding(.horizontal)
 
