@@ -10,6 +10,72 @@
 import SwiftUI
 import PhotosUI
 import CoreLocation
+import PencilKit
+import Photos
+
+/// Renders a journal entry's body as `Text`, applying the app's lightweight
+/// Markdown (bold/italic via `**`/`*`, inserted by RichTextEditor's toolbar)
+/// safely — via `AttributedString`, not `Text(LocalizedStringKey:)`, since a
+/// dynamic `LocalizedStringKey` also performs printf-style `%`-substitution,
+/// which could garble a user's own text if it happens to contain a literal
+/// "%" sequence. Lines starting with the toolbar's "- " bullet prefix are
+/// rewritten to a real bullet character first, since `Text` has no
+/// block-level list rendering to interpret that Markdown syntax itself.
+func journalBodyText(_ text: String) -> Text {
+    let lines = text.components(separatedBy: "\n").map { line in
+        line.hasPrefix("- ") ? "\u{2022}" + line.dropFirst(1) : line
+    }
+    let rendered = lines.joined(separator: "\n")
+    let options = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+    let attributed = (try? AttributedString(markdown: rendered, options: options)) ?? AttributedString(rendered)
+    return Text(attributed)
+}
+
+/// Gates arbitrary content behind Face ID/passcode when journal locking is
+/// enabled — wraps JournalListView at the tab-content call site so the list
+/// itself stays unaware of locking entirely. Re-locks whenever the app
+/// backgrounds, and attempts authentication automatically as soon as the
+/// gate first appears locked.
+struct JournalLockGateView<Content: View>: View {
+    @EnvironmentObject var lockManager: JournalLockManager
+    @Environment(\.scenePhase) private var scenePhase
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        Group {
+            if lockManager.isUnlocked {
+                content()
+            } else {
+                lockedView
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background {
+                lockManager.lock()
+            }
+        }
+        .task(id: lockManager.isUnlocked) {
+            if lockManager.isLockEnabled && !lockManager.isUnlocked {
+                await lockManager.authenticate()
+            }
+        }
+    }
+
+    private var lockedView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(.secondary)
+            Text("Journal Locked")
+                .font(.headline)
+            Button("Unlock") {
+                Task { await lockManager.authenticate() }
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
 
 struct JournalListView: View {
     @EnvironmentObject var journalStore: JournalStore
@@ -18,6 +84,17 @@ struct JournalListView: View {
     @State private var showingAddEntry = false
     @State private var selectedEntry: JournalEntry?
     @State private var filterJournal: String?
+    @State private var searchText = ""
+    @State private var suggestedMemory: TravelMemory?
+
+    @State private var showingNewJournalAlert = false
+    @State private var newJournalName = ""
+    @State private var showingNewJournalEntry = false
+    @State private var pendingNewJournalName = ""
+
+    @State private var photoAuthStatus: PHAuthorizationStatus = PhotoLibraryMomentFinder.authorizationStatus
+    @State private var moments: [PhotoMoment] = []
+    @State private var selectedMomentPrefill: PrefilledMomentData?
 
     private static let defaultJournalName = "Journal"
 
@@ -30,9 +107,54 @@ struct JournalListView: View {
         Array(Set(journalStore.entries.compactMap(\.journalName))).sorted()
     }
 
+    private var currentStreak: Int {
+        JournalStreak.currentStreak(entryDates: journalStore.entries.map(\.date))
+    }
+
+    private var entriesThisYear: Int {
+        journalStore.entries.filter { Calendar.current.isDate($0.date, equalTo: Date(), toGranularity: .year) }.count
+    }
+
+    private var locatedEntryCount: Int {
+        journalStore.entries.filter { $0.coordinate != nil }.count
+    }
+
+    /// Saved places without a journal entry about them yet, most-recent
+    /// first — the candidate pool for the "Write About" suggestions row.
+    private var suggestionCandidates: [TravelMemory] {
+        let linkedIDs = Set(journalStore.entries.compactMap(\.linkedMemoryID))
+        return Array(
+            store.memories
+                .filter { !linkedIDs.contains($0.id) }
+                .sorted { $0.dateAdded > $1.dateAdded }
+                .prefix(5)
+        )
+    }
+
+    /// Every distinct journal name in use, paired with its entry count, for
+    /// the home-screen "Journals" list — same grouping JournalInsightsView
+    /// already derives for its own breakdown.
+    private var journalBreakdown: [(name: String, count: Int)] {
+        let groups = Dictionary(grouping: journalStore.entries) { $0.journalName ?? Self.defaultJournalName }
+        return groups.map { (name: $0.key, count: $0.value.count) }.sorted { $0.count > $1.count }
+    }
+
     private var visibleEntries: [JournalEntry] {
-        guard let filterJournal else { return sortedEntries }
-        return sortedEntries.filter { ($0.journalName ?? Self.defaultJournalName) == filterJournal }
+        var result = sortedEntries
+        if let filterJournal {
+            result = result.filter { ($0.journalName ?? Self.defaultJournalName) == filterJournal }
+        }
+
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        if !query.isEmpty {
+            result = result.filter {
+                $0.text.localizedCaseInsensitiveContains(query)
+                    || ($0.journalName?.localizedCaseInsensitiveContains(query) ?? false)
+                    || ($0.locationLabel?.localizedCaseInsensitiveContains(query) ?? false)
+            }
+        }
+
+        return result
     }
 
     /// Only worth grouping into sections once more than one journal is
@@ -45,48 +167,45 @@ struct JournalListView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                Button {
-                    showingAddEntry = true
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 44))
-                        .foregroundStyle(.blue)
+            List {
+                Section {
+                    homeCardsContent
                 }
-                .padding(.top, 4)
-                .padding(.bottom, 12)
+                .listRowInsets(EdgeInsets())
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
 
-                Group {
-                    if journalStore.entries.isEmpty {
+                if journalStore.entries.isEmpty {
+                    Section {
                         ContentUnavailableView(
                             "No Journal Entries Yet",
                             systemImage: "book.closed",
-                            description: Text("Tap the + button to write about your day.")
+                            description: Text("Tap + to write about your day.")
                         )
-                    } else {
-                        List {
-                            if let groupedByJournal {
-                                ForEach(groupedByJournal, id: \.journal) { group in
-                                    Section(group.journal) {
-                                        ForEach(group.entries) { entry in
-                                            entryRow(for: entry)
-                                        }
-                                    }
-                                }
-                            } else {
-                                ForEach(visibleEntries) { entry in
-                                    entryRow(for: entry)
-                                }
+                    }
+                    .listRowSeparator(.hidden)
+                } else if let groupedByJournal {
+                    ForEach(groupedByJournal, id: \.journal) { group in
+                        Section(group.journal) {
+                            ForEach(group.entries) { entry in
+                                entryRow(for: entry)
                             }
                         }
-                        .listStyle(.plain)
-                        .refreshable {
-                            await journalStore.syncNow()
+                    }
+                } else {
+                    Section {
+                        ForEach(visibleEntries) { entry in
+                            entryRow(for: entry)
                         }
                     }
                 }
             }
+            .listStyle(.plain)
+            .refreshable {
+                await journalStore.syncNow()
+            }
             .navigationTitle("Journal")
+            .searchable(text: $searchText, prompt: "Search entries")
             .toolbar {
                 if availableJournals.count > 1 {
                     ToolbarItem(placement: .primaryAction) {
@@ -102,16 +221,274 @@ struct JournalListView: View {
                         }
                     }
                 }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingAddEntry = true
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                    }
+                }
             }
             .sheet(isPresented: $showingAddEntry) {
                 JournalEntryFormSheet(entry: nil)
+                    .environmentObject(locationManager)
+            }
+            .sheet(item: $suggestedMemory) { memory in
+                JournalEntryFormSheet(entry: nil, prefilledMemoryID: memory.id)
                     .environmentObject(locationManager)
             }
             .sheet(item: $selectedEntry) { entry in
                 JournalEntryFormSheet(entry: entry)
                     .environmentObject(locationManager)
             }
+            .sheet(isPresented: $showingNewJournalEntry) {
+                JournalEntryFormSheet(entry: nil, prefilledJournalName: pendingNewJournalName)
+                    .environmentObject(locationManager)
+            }
+            .sheet(item: $selectedMomentPrefill) { moment in
+                JournalEntryFormSheet(entry: nil, prefilledMoment: moment)
+                    .environmentObject(locationManager)
+            }
+            .alert("New Journal", isPresented: $showingNewJournalAlert) {
+                TextField("Journal Name", text: $newJournalName)
+                Button("Cancel", role: .cancel) { newJournalName = "" }
+                Button("Create") {
+                    pendingNewJournalName = newJournalName
+                    newJournalName = ""
+                    showingNewJournalEntry = true
+                }
+            }
+            .task {
+                if photoAuthStatus == .authorized || photoAuthStatus == .limited {
+                    await loadMoments()
+                }
+            }
         }
+    }
+
+    private func requestPhotoAccessAndLoadMoments() async {
+        photoAuthStatus = await PhotoLibraryMomentFinder.requestAuthorization()
+        if photoAuthStatus == .authorized || photoAuthStatus == .limited {
+            await loadMoments()
+        }
+    }
+
+    private func loadMoments() async {
+        let alreadyJournaled = Set(journalStore.entries.compactMap(\.sourceAssetIdentifiers).flatMap { $0 })
+        moments = await PhotoLibraryMomentFinder.findMoments(excludingAssetIdentifiers: alreadyJournaled)
+    }
+
+    private func selectMoment(_ moment: PhotoMoment) async {
+        let photoData = await PhotoLibraryMomentFinder.loadImageData(for: moment.assetIdentifiers)
+        selectedMomentPrefill = PrefilledMomentData(
+            date: moment.date,
+            coordinate: moment.coordinate,
+            locationLabel: moment.locationLabel,
+            photoData: photoData,
+            sourceAssetIdentifiers: moment.assetIdentifiers
+        )
+    }
+
+    @ViewBuilder
+    private var homeCardsContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                insightsCard
+                placesCard
+            }
+
+            if currentStreak > 0 {
+                Text("🔥 \(currentStreak)-day streak")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+
+            journalsSection
+
+            if !suggestionCandidates.isEmpty {
+                smartSuggestionsRow
+            }
+
+            suggestedMomentsRow
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+    }
+
+    private var journalsSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Journals")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    showingNewJournalAlert = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                }
+            }
+
+            ForEach(journalBreakdown, id: \.name) { item in
+                Button {
+                    filterJournal = item.name
+                } label: {
+                    HStack {
+                        Text(item.name)
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text("\(item.count)")
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 12)
+                    .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    /// Recent same-day, nearby-location photo clusters from the user's
+    /// Photos library, offered as journal-entry starting points — Apple
+    /// Journal's "moment" suggestions. Needs a dedicated permission the rest
+    /// of the app doesn't otherwise ask for, so this stays opt-in: nothing is
+    /// requested until the user taps in.
+    @ViewBuilder
+    private var suggestedMomentsRow: some View {
+        if photoAuthStatus == .notDetermined {
+            Button {
+                Task { await requestPhotoAccessAndLoadMoments() }
+            } label: {
+                Label("See Suggested Moments From Your Photos", systemImage: "photo.stack")
+                    .font(.subheadline)
+            }
+        } else if (photoAuthStatus == .authorized || photoAuthStatus == .limited), !moments.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Suggested Moments")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(moments) { moment in
+                            Button {
+                                Task { await selectMoment(moment) }
+                            } label: {
+                                MomentCard(moment: moment)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var insightsCard: some View {
+        NavigationLink {
+            JournalInsightsView()
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(entriesThisYear)")
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                Text("Entries this year")
+                    .font(.caption)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(
+                LinearGradient(colors: [.purple, .indigo], startPoint: .topLeading, endPoint: .bottomTrailing),
+                in: RoundedRectangle(cornerRadius: 16)
+            )
+            .foregroundStyle(.white)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var placesCard: some View {
+        NavigationLink {
+            JournalMapView()
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Image(systemName: "map.fill")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Text("\(locatedEntryCount)")
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                Text("Places")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+            .foregroundStyle(.primary)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Saved places without a journal entry yet, offered as quick-start
+    /// prompts — taps straight into a new entry pre-linked to that place via
+    /// JournalEntryFormSheet's existing `prefilledMemoryID` parameter.
+    private var smartSuggestionsRow: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Write About")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(suggestionCandidates) { memory in
+                        Button {
+                            suggestedMemory = memory
+                        } label: {
+                            suggestionCard(for: memory)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Same photo-or-category-icon fallback `MemoryRow`/`MemoryPin` already
+    /// use elsewhere in the app — a suggestion for a place with a real photo
+    /// should actually show it, not just a generic category icon.
+    @ViewBuilder
+    private func suggestionCard(for memory: TravelMemory) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Group {
+                if let thumbnail = PhotoStore.thumbnail(for: memory.coverPhotoFilename, maxDimension: 240) {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    ZStack {
+                        memory.category.color.opacity(0.15)
+                        Image(systemName: memory.category.icon)
+                            .font(.title3)
+                            .foregroundStyle(memory.category.color)
+                    }
+                }
+            }
+            .frame(width: 120, height: 70)
+            .clipped()
+
+            Text(memory.name)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.primary)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .padding(8)
+                .frame(width: 120, alignment: .leading)
+        }
+        .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     @ViewBuilder
@@ -139,12 +516,69 @@ struct JournalListView: View {
     }
 }
 
+/// A suggested photo moment with its full-resolution image data already
+/// loaded, ready to prefill a new entry — the load happens once, right after
+/// the user taps a moment card, since PHAsset -> Data conversion is async
+/// and JournalEntryFormSheet's init can't be.
+struct PrefilledMomentData: Identifiable {
+    let id = UUID()
+    let date: Date
+    let coordinate: CLLocationCoordinate2D?
+    let locationLabel: String?
+    let photoData: [Data]
+    let sourceAssetIdentifiers: [String]
+}
+
+/// One suggested-moment card on the Journal home screen — loads its own
+/// thumbnail lazily since PhotoLibraryMomentFinder.thumbnail(for:) is async.
+private struct MomentCard: View {
+    let moment: PhotoMoment
+    @State private var thumbnail: UIImage?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Group {
+                if let thumbnail {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Color.secondary.opacity(0.15)
+                }
+            }
+            .frame(width: 120, height: 70)
+            .clipped()
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(moment.date, style: .date)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.primary)
+                if let locationLabel = moment.locationLabel {
+                    Text(locationLabel)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .padding(8)
+            .frame(width: 120, alignment: .leading)
+        }
+        .background(.thickMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .task {
+            guard let firstAssetID = moment.assetIdentifiers.first else { return }
+            thumbnail = await PhotoLibraryMomentFinder.thumbnail(for: firstAssetID, maxDimension: 240)
+        }
+    }
+}
+
 /// A Day One-style entry card: hero photo (or video poster) with a weather/
 /// location caption bar over it when present, then date, text preview, and
 /// any linked-place/journal chips.
 struct JournalEntryCard: View {
     let entry: JournalEntry
     let linkedMemory: TravelMemory?
+    @EnvironmentObject var journalStore: JournalStore
 
     private var heroImage: UIImage? {
         if let coverPhoto = entry.coverPhotoFilename {
@@ -153,7 +587,14 @@ struct JournalEntryCard: View {
         if let firstVideo = entry.videoFilenames.first {
             return VideoStore.thumbnail(for: firstVideo, maxDimension: 500)
         }
+        if let drawingFilename = entry.drawingFilename {
+            return DrawingStore.thumbnail(for: drawingFilename, maxDimension: 500)
+        }
         return nil
+    }
+
+    private var isSyncPending: Bool {
+        journalStore.pendingEntryIDs.contains(entry.id)
     }
 
     private var mediaCount: Int {
@@ -195,12 +636,25 @@ struct JournalEntryCard: View {
                     captionBar
                 }
 
-                Text(entry.date, style: .date)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    Text(entry.date, style: .date)
+                    if let mood = entry.mood {
+                        Text(mood.emoji)
+                    }
+                    if isSyncPending {
+                        Image(systemName: "icloud.and.arrow.up")
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+                if let title = entry.title?.trimmedNonEmpty {
+                    Text(title)
+                        .font(.headline)
+                }
 
                 if !entry.text.isEmpty {
-                    Text(entry.text)
+                    journalBodyText(entry.text)
                         .font(.body)
                         .lineLimit(4)
                 }
@@ -276,6 +730,9 @@ struct JournalEntryRow: View {
         if let firstVideo = entry.videoFilenames.first {
             return VideoStore.thumbnail(for: firstVideo, maxDimension: 100)
         }
+        if let drawingFilename = entry.drawingFilename {
+            return DrawingStore.thumbnail(for: drawingFilename, maxDimension: 100)
+        }
         return nil
     }
 
@@ -294,8 +751,13 @@ struct JournalEntryRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
+                if let title = entry.title?.trimmedNonEmpty {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                }
+
                 if !entry.text.isEmpty {
-                    Text(entry.text)
+                    journalBodyText(entry.text)
                         .font(.body)
                         .lineLimit(3)
                 }
@@ -359,7 +821,9 @@ struct JournalEntryFormSheet: View {
     }
 
     @State private var date: Date
+    @State private var title: String
     @State private var text: String
+    @State private var pendingWrap: RichTextWrap?
     @State private var linkedMemoryID: UUID?
     @State private var journalName: String
     @State private var showingPlacePicker = false
@@ -375,8 +839,19 @@ struct JournalEntryFormSheet: View {
     @State private var showingVideoCamera = false
     @State private var capturedVideoURL: URL?
 
+    @State private var audioFilename: String?
+    @State private var mood: JournalMood?
+
+    @State private var drawing: PKDrawing
+    @State private var drawingFilename: String?
+    @State private var showingDrawingCanvas = false
+
+    private let sourceAssetIdentifiers: [String]?
+
     // Auto-captured on appear for a brand-new entry only — past entries keep
     // whatever they were written with rather than being retroactively tagged.
+    // Also skipped for an entry prefilled from a photo moment, since that
+    // moment already carries its own (past) date and location.
     @State private var latitude: Double?
     @State private var longitude: Double?
     @State private var locationLabel: String?
@@ -384,21 +859,30 @@ struct JournalEntryFormSheet: View {
     @State private var weatherSymbolName: String?
     @State private var weatherDescription: String?
     @State private var isCapturingContext = false
+    private let suppressAutoContext: Bool
 
-    init(entry: JournalEntry?, prefilledMemoryID: UUID? = nil) {
+    init(entry: JournalEntry?, prefilledMemoryID: UUID? = nil, prefilledJournalName: String? = nil, prefilledMoment: PrefilledMomentData? = nil) {
         self.entry = entry
-        _date = State(initialValue: entry?.date ?? Date())
+        _date = State(initialValue: entry?.date ?? prefilledMoment?.date ?? Date())
+        _title = State(initialValue: entry?.title ?? "")
         _text = State(initialValue: entry?.text ?? "")
         _linkedMemoryID = State(initialValue: entry?.linkedMemoryID ?? prefilledMemoryID)
-        _journalName = State(initialValue: entry?.journalName ?? "")
-        _photos = State(initialValue: entry?.photoFilenames.map { EditableEntryPhoto(filename: $0, data: nil) } ?? [])
+        _journalName = State(initialValue: entry?.journalName ?? prefilledJournalName ?? "")
+        let momentPhotos = prefilledMoment?.photoData.map { EditableEntryPhoto(filename: nil, data: $0) } ?? []
+        _photos = State(initialValue: entry?.photoFilenames.map { EditableEntryPhoto(filename: $0, data: nil) } ?? momentPhotos)
         _videos = State(initialValue: entry?.videoFilenames.map { EditableEntryVideo(filename: $0, temporaryURL: nil) } ?? [])
-        _latitude = State(initialValue: entry?.latitude)
-        _longitude = State(initialValue: entry?.longitude)
-        _locationLabel = State(initialValue: entry?.locationLabel)
+        _audioFilename = State(initialValue: entry?.audioFilename)
+        _mood = State(initialValue: entry?.mood)
+        _drawing = State(initialValue: DrawingStore.drawing(for: entry?.drawingFilename) ?? PKDrawing())
+        _drawingFilename = State(initialValue: entry?.drawingFilename)
+        sourceAssetIdentifiers = entry?.sourceAssetIdentifiers ?? prefilledMoment?.sourceAssetIdentifiers
+        _latitude = State(initialValue: entry?.latitude ?? prefilledMoment?.coordinate?.latitude)
+        _longitude = State(initialValue: entry?.longitude ?? prefilledMoment?.coordinate?.longitude)
+        _locationLabel = State(initialValue: entry?.locationLabel ?? prefilledMoment?.locationLabel)
         _weatherTemperatureCelsius = State(initialValue: entry?.weatherTemperatureCelsius)
         _weatherSymbolName = State(initialValue: entry?.weatherSymbolName)
         _weatherDescription = State(initialValue: entry?.weatherDescription)
+        suppressAutoContext = prefilledMoment != nil
     }
 
     private var linkedMemory: TravelMemory? {
@@ -430,6 +914,9 @@ struct JournalEntryFormSheet: View {
                 .sheet(isPresented: $showingVideoCamera) {
                     VideoCameraView(videoURL: $capturedVideoURL)
                 }
+                .sheet(isPresented: $showingDrawingCanvas) {
+                    drawingCanvasSheet
+                }
                 .onChange(of: capturedImage) { _, newValue in handleCapturedImage(newValue) }
                 .onChange(of: pickerItems) { _, newValue in handlePickedPhotoItems(newValue) }
                 .onChange(of: capturedVideoURL) { _, newValue in handleCapturedVideo(newValue) }
@@ -460,6 +947,14 @@ struct JournalEntryFormSheet: View {
                 photosSectionContent
             }
 
+            Section("Audio") {
+                VoiceNoteControl(filename: $audioFilename, externallyOwnedFilename: entry?.audioFilename)
+            }
+
+            Section("Sketch") {
+                sketchSectionContent
+            }
+
             Section {
                 placeSectionContent
             } footer: {
@@ -482,7 +977,19 @@ struct JournalEntryFormSheet: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            Button("Cancel") { dismiss() }
+            Button("Cancel") {
+                // Nothing has been saved yet, so a newly recorded/replaced
+                // voice note or sketch that isn't the entry's original is an
+                // orphan — both are written to disk immediately, unlike
+                // photos, which stay as in-memory Data until Save.
+                if audioFilename != entry?.audioFilename, let audioFilename {
+                    VoiceNoteStore.delete(audioFilename)
+                }
+                if drawingFilename != entry?.drawingFilename, let drawingFilename {
+                    DrawingStore.delete(drawingFilename)
+                }
+                dismiss()
+            }
         }
         ToolbarItem(placement: .confirmationAction) {
             Button("Save") {
@@ -530,9 +1037,120 @@ struct JournalEntryFormSheet: View {
 
     @ViewBuilder
     private var detailsSectionContent: some View {
-        DatePicker("Date", selection: $date, displayedComponents: .date)
-        TextField("What happened today?", text: $text, axis: .vertical)
-            .lineLimit(5...12)
+        TextField("Title (optional)", text: $title)
+            .font(.headline)
+        DatePicker("Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
+        moodPicker
+        formattingToolbar
+        RichTextEditor(text: $text, placeholder: "What happened today?", pendingWrap: $pendingWrap)
+            .frame(minHeight: 160)
+    }
+
+    /// Wraps the current text-editor selection in Markdown syntax, rendered
+    /// wherever an entry's body is displayed via `Text(LocalizedStringKey:)`.
+    private var formattingToolbar: some View {
+        HStack(spacing: 20) {
+            Button { pendingWrap = .bold } label: {
+                Image(systemName: "bold")
+            }
+            Button { pendingWrap = .italic } label: {
+                Image(systemName: "italic")
+            }
+            Button { pendingWrap = .bullet } label: {
+                Image(systemName: "list.bullet")
+            }
+            Spacer()
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+    }
+
+    @ViewBuilder
+    private var sketchSectionContent: some View {
+        if let drawingThumbnail {
+            Button {
+                showingDrawingCanvas = true
+            } label: {
+                Image(uiImage: drawingThumbnail)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxHeight: 120)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+            Button("Remove Sketch", role: .destructive) {
+                if let drawingFilename, drawingFilename != entry?.drawingFilename {
+                    DrawingStore.delete(drawingFilename)
+                }
+                drawing = PKDrawing()
+                drawingFilename = nil
+            }
+        } else {
+            Button {
+                showingDrawingCanvas = true
+            } label: {
+                Label("Add a Sketch", systemImage: "pencil.tip")
+            }
+        }
+    }
+
+    /// Rendered directly from the in-memory `drawing`, not via DrawingStore
+    /// (which reflects only what's already been written to disk) — an
+    /// in-session edit that hasn't been saved yet still needs to show here.
+    private var drawingThumbnail: UIImage? {
+        guard !drawing.strokes.isEmpty else { return nil }
+        let bounds = drawing.bounds
+        guard !bounds.isEmpty else { return nil }
+        let scale = min(1, 300 / max(bounds.width, bounds.height))
+        return drawing.image(from: bounds, scale: scale)
+    }
+
+    private var drawingCanvasSheet: some View {
+        NavigationStack {
+            DrawingCanvasView(drawing: $drawing)
+                .navigationTitle("Sketch")
+                .navigationBarTitleDisplayMode(.inline)
+                // The form's thumbnail preview already reflects live `drawing`
+                // state as soon as a stroke is made, but `drawingFilename` (what
+                // actually persists) is only updated by Done below — a swipe
+                // dismiss would silently discard strokes the preview already
+                // implied were kept, so route every exit through Done/Clear.
+                .interactiveDismissDisabled()
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Clear", role: .destructive) {
+                            drawing = PKDrawing()
+                        }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") {
+                            let previous = drawingFilename
+                            drawingFilename = drawing.strokes.isEmpty ? nil : DrawingStore.save(drawing)
+                            if let previous, previous != entry?.drawingFilename {
+                                DrawingStore.delete(previous)
+                            }
+                            showingDrawingCanvas = false
+                        }
+                    }
+                }
+        }
+    }
+
+    private var moodPicker: some View {
+        HStack(spacing: 6) {
+            ForEach(JournalMood.allCases) { candidate in
+                Button {
+                    mood = (mood == candidate) ? nil : candidate
+                } label: {
+                    Text(candidate.emoji)
+                        .font(.title2)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(mood == candidate ? Color.blue.opacity(0.15) : Color.clear, in: RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 
     @ViewBuilder
@@ -698,7 +1316,7 @@ struct JournalEntryFormSheet: View {
     /// Only ever runs once, for a brand-new entry, and only if we don't
     /// already have a location (re-opening the sheet shouldn't re-fetch).
     private func captureContextIfNeeded() async {
-        guard entry == nil, latitude == nil, let coordinate = locationManager.currentLocation else { return }
+        guard entry == nil, !suppressAutoContext, latitude == nil, let coordinate = locationManager.currentLocation else { return }
         isCapturingContext = true
         latitude = coordinate.latitude
         longitude = coordinate.longitude
@@ -739,18 +1357,32 @@ struct JournalEntryFormSheet: View {
             }
         }
 
+        let trimmedTitle = title.trimmedNonEmpty
+
         if let entry {
+            if audioFilename != entry.audioFilename, let oldFilename = entry.audioFilename {
+                VoiceNoteStore.delete(oldFilename)
+            }
+            if drawingFilename != entry.drawingFilename, let oldFilename = entry.drawingFilename {
+                DrawingStore.delete(oldFilename)
+            }
             var updated = entry
             updated.date = date
+            updated.title = trimmedTitle
             updated.text = trimmedText
             updated.photoFilenames = photoFilenames
             updated.videoFilenames = videoFilenames
             updated.linkedMemoryID = linkedMemoryID
             updated.journalName = trimmedJournalName
+            updated.audioFilename = audioFilename
+            updated.mood = mood
+            updated.drawingFilename = drawingFilename
+            updated.sourceAssetIdentifiers = sourceAssetIdentifiers
             journalStore.update(updated)
         } else {
             journalStore.add(JournalEntry(
                 date: date,
+                title: trimmedTitle,
                 text: trimmedText,
                 photoFilenames: photoFilenames,
                 videoFilenames: videoFilenames,
@@ -761,7 +1393,11 @@ struct JournalEntryFormSheet: View {
                 locationLabel: locationLabel,
                 weatherTemperatureCelsius: weatherTemperatureCelsius,
                 weatherSymbolName: weatherSymbolName,
-                weatherDescription: weatherDescription
+                weatherDescription: weatherDescription,
+                audioFilename: audioFilename,
+                mood: mood,
+                drawingFilename: drawingFilename,
+                sourceAssetIdentifiers: sourceAssetIdentifiers
             ))
         }
         dismiss()

@@ -505,8 +505,8 @@ struct ItineraryPlannerTests {
 
     @Test func discoverReturnsEmptyForNonPositiveStopCount() async {
         let origin = CLLocationCoordinate2D(latitude: -27.4705, longitude: 153.0260)
-        let stops = await ItineraryPlanner.discover(vibe: .relaxed, origin: origin, maxDistanceKm: 3, stopCount: 0)
-        #expect(stops.isEmpty)
+        let result = await ItineraryPlanner.discover(vibe: .relaxed, origin: origin, maxDistanceKm: 3, stopCount: 0)
+        #expect(result.stops.isEmpty)
     }
 
     // MapKit exposes no rating, so "top" places are ranked by a free proxy:
@@ -528,6 +528,76 @@ struct ItineraryPlannerTests {
         let farPlace = DiscoveredPlace(name: "Far", category: .location, coordinate: far, address: nil, phoneNumber: nil, website: nil)
         let ranked = ItineraryPlanner.rank([farPlace, nearPlace], from: origin)
         #expect(ranked.map(\.name) == ["Near", "Far"])
+    }
+
+    @Test func orderByProximityFollowsAWalkableSequenceInsteadOfBacktracking() {
+        // Deliberately shuffled so origin-distance order (what `rank` would
+        // produce) is Far, Near, Mid — a walking route that visited them in
+        // that order would backtrack past Near to reach Mid. Nearest-neighbor
+        // sequencing should instead flow Near, Mid, Far, straight down the line.
+        let origin = CLLocationCoordinate2D(latitude: -26.40, longitude: 153.09)
+        let near = CLLocationCoordinate2D(latitude: -26.41, longitude: 153.09)
+        let mid = CLLocationCoordinate2D(latitude: -26.42, longitude: 153.09)
+        let far = CLLocationCoordinate2D(latitude: -26.43, longitude: 153.09)
+        let nearPlace = DiscoveredPlace(name: "Near", category: .location, coordinate: near, address: nil, phoneNumber: nil, website: nil)
+        let midPlace = DiscoveredPlace(name: "Mid", category: .location, coordinate: mid, address: nil, phoneNumber: nil, website: nil)
+        let farPlace = DiscoveredPlace(name: "Far", category: .location, coordinate: far, address: nil, phoneNumber: nil, website: nil)
+        let ordered = ItineraryPlanner.orderByProximity([farPlace, nearPlace, midPlace], from: origin)
+        #expect(ordered.map(\.name) == ["Near", "Mid", "Far"])
+    }
+
+    @Test func selectDiverseDoesNotLetOneAbundantCategoryCrowdOutTheRest() {
+        // Modeled on a real Sunshine Beach Foodie search: dozens of
+        // restaurants, a handful of cafes, a couple of bakeries. A flat
+        // prefix() after ranking (which sorts all-restaurants-first purely
+        // because there are more close, verified ones) left only a single
+        // cafe in a 9-stop itinerary. Round-robin selection should instead
+        // spread picks across every category actually present.
+        func place(_ name: String, _ category: Comebackone_day_1_2.Category, _ mapKitCategory: MKPointOfInterestCategory) -> DiscoveredPlace {
+            DiscoveredPlace(name: name, category: category, coordinate: CLLocationCoordinate2D(latitude: 0, longitude: 0), address: nil, phoneNumber: nil, website: nil, mapKitCategory: mapKitCategory)
+        }
+        let restaurants = (1...8).map { place("Restaurant \($0)", .restaurant, .restaurant) }
+        let cafes = (1...2).map { place("Cafe \($0)", .cafe, .cafe) }
+        let ranked = restaurants + cafes // restaurants sort first, as `rank` would produce
+
+        let selected = ItineraryPlanner.selectDiverse(ranked, count: 6)
+        let cafeCount = selected.filter { $0.mapKitCategory == .cafe }.count
+        #expect(cafeCount == 2, "both cafes should make the cut instead of being crowded out by restaurants")
+        #expect(selected.count == 6)
+    }
+
+    @Test func selectDiverseSpreadsAcrossFineGrainedCategoriesEvenWhenAppCategoryIsShared() {
+        // Adventure-vibe categories (park, hiking, beach, kayaking...) all
+        // map to the same coarse app-level `.location` category — bucketing
+        // on that would make this round-robin a no-op. It must bucket on
+        // MapKit's own finer category so a real adventure day mixes types
+        // instead of defaulting to a run of generic parks.
+        func place(_ name: String, _ mapKitCategory: MKPointOfInterestCategory) -> DiscoveredPlace {
+            DiscoveredPlace(name: name, category: .location, coordinate: CLLocationCoordinate2D(latitude: 0, longitude: 0), address: nil, phoneNumber: nil, website: nil, mapKitCategory: mapKitCategory)
+        }
+        let parks = (1...6).map { place("Park \($0)", .park) }
+        let hikes = (1...2).map { place("Trail \($0)", .hiking) }
+        let beaches = [place("Beach", .beach)]
+        let ranked = parks + hikes + beaches // parks sort first, as `rank` would produce (same establishment score, arbitrary order)
+
+        let selected = ItineraryPlanner.selectDiverse(ranked, count: 4)
+        let categoriesPicked = Set(selected.compactMap(\.mapKitCategory))
+        #expect(categoriesPicked.contains(.hiking), "hiking should make the cut instead of being crowded out by parks")
+        #expect(categoriesPicked.contains(.beach), "the beach should make the cut instead of being crowded out by parks")
+    }
+
+    @Test func nameSuggestsUnrelatedProfessionalServiceCatchesMislabeledListings() {
+        // Real MapKit listings seen this session, complete with phone and
+        // website (which is why `rank` trusted them), but tagged with a
+        // category that plainly doesn't match the business itself.
+        #expect(ItineraryPlanner.nameSuggestsUnrelatedProfessionalService("IntExt Design"))
+        #expect(ItineraryPlanner.nameSuggestsUnrelatedProfessionalService("Sunshine Progressive Kinesiology and Meditation") == false)
+
+        // Real adventure/food places should never be caught by this.
+        #expect(!ItineraryPlanner.nameSuggestsUnrelatedProfessionalService("Tanglewood Walk"))
+        #expect(!ItineraryPlanner.nameSuggestsUnrelatedProfessionalService("National Park Information Centre"))
+        #expect(!ItineraryPlanner.nameSuggestsUnrelatedProfessionalService("Go Ride A Wave"))
+        #expect(!ItineraryPlanner.nameSuggestsUnrelatedProfessionalService("Season Restaurant"))
     }
 }
 
@@ -578,5 +648,262 @@ struct JournalEntryCodingTests {
         #expect(entry.journalName == nil)
         #expect(entry.coordinate == nil)
         #expect(entry.coverPhotoFilename == nil)
+    }
+
+    @Test func roundTripPreservesAudioFilename() throws {
+        let entry = JournalEntry(text: "Recorded a note about this spot.", audioFilename: "note.m4a")
+        let data = try JSONEncoder().encode(entry)
+        let decoded = try JSONDecoder().decode(JournalEntry.self, from: data)
+        #expect(decoded == entry)
+        #expect(decoded.audioFilename == "note.m4a")
+    }
+
+    /// The actual backward-compatibility guarantee this design depends on:
+    /// entries persisted before `audioFilename` existed have no such key in
+    /// their JSON at all. Swift's synthesized decoder uses `decodeIfPresent`
+    /// for Optional stored properties, so this must still decode cleanly.
+    @Test func decodesOldEntryMissingAudioFilenameKey() throws {
+        let json = """
+        {
+            "id": "08D8A3C4-A65B-4119-876A-C7789A460D4F",
+            "date": 800000000,
+            "text": "Written before audio existed.",
+            "photoFilenames": [],
+            "videoFilenames": [],
+            "dateAdded": 800000000
+        }
+        """
+        let decoded = try JSONDecoder().decode(JournalEntry.self, from: Data(json.utf8))
+        #expect(decoded.audioFilename == nil)
+        #expect(decoded.text == "Written before audio existed.")
+    }
+
+    @Test func roundTripPreservesMood() throws {
+        let entry = JournalEntry(text: "Best day of the trip.", mood: .amazing)
+        let data = try JSONEncoder().encode(entry)
+        let decoded = try JSONDecoder().decode(JournalEntry.self, from: data)
+        #expect(decoded == entry)
+        #expect(decoded.mood == .amazing)
+    }
+
+    /// Same backward-compatibility guarantee as `audioFilename`: entries
+    /// persisted before mood tagging existed have no such key at all.
+    @Test func decodesOldEntryMissingMoodKey() throws {
+        let json = """
+        {
+            "id": "08D8A3C4-A65B-4119-876A-C7789A460D4F",
+            "date": 800000000,
+            "text": "Written before mood tagging existed.",
+            "photoFilenames": [],
+            "videoFilenames": [],
+            "dateAdded": 800000000
+        }
+        """
+        let decoded = try JSONDecoder().decode(JournalEntry.self, from: Data(json.utf8))
+        #expect(decoded.mood == nil)
+    }
+
+    @Test func roundTripPreservesTitle() throws {
+        let entry = JournalEntry(title: "A Great Day", text: "Explored the old town.")
+        let data = try JSONEncoder().encode(entry)
+        let decoded = try JSONDecoder().decode(JournalEntry.self, from: data)
+        #expect(decoded == entry)
+        #expect(decoded.title == "A Great Day")
+    }
+
+    /// Same backward-compatibility guarantee as `audioFilename`/`mood`:
+    /// entries persisted before titles existed have no such key at all.
+    @Test func decodesOldEntryMissingTitleKey() throws {
+        let json = """
+        {
+            "id": "08D8A3C4-A65B-4119-876A-C7789A460D4F",
+            "date": 800000000,
+            "text": "Written before titles existed.",
+            "photoFilenames": [],
+            "videoFilenames": [],
+            "dateAdded": 800000000
+        }
+        """
+        let decoded = try JSONDecoder().decode(JournalEntry.self, from: Data(json.utf8))
+        #expect(decoded.title == nil)
+    }
+
+    @Test func roundTripPreservesDrawingFilename() throws {
+        let entry = JournalEntry(text: "Sketched the view.", drawingFilename: "sketch.drawing")
+        let data = try JSONEncoder().encode(entry)
+        let decoded = try JSONDecoder().decode(JournalEntry.self, from: data)
+        #expect(decoded == entry)
+        #expect(decoded.drawingFilename == "sketch.drawing")
+    }
+
+    /// Same backward-compatibility guarantee as `audioFilename`/`mood`:
+    /// entries persisted before sketches existed have no such key at all.
+    @Test func decodesOldEntryMissingDrawingFilenameKey() throws {
+        let json = """
+        {
+            "id": "08D8A3C4-A65B-4119-876A-C7789A460D4F",
+            "date": 800000000,
+            "text": "Written before sketches existed.",
+            "photoFilenames": [],
+            "videoFilenames": [],
+            "dateAdded": 800000000
+        }
+        """
+        let decoded = try JSONDecoder().decode(JournalEntry.self, from: Data(json.utf8))
+        #expect(decoded.drawingFilename == nil)
+    }
+
+    @Test func roundTripPreservesSourceAssetIdentifiers() throws {
+        let entry = JournalEntry(text: "From a suggested moment.", sourceAssetIdentifiers: ["ABC/L0/001", "ABC/L0/002"])
+        let data = try JSONEncoder().encode(entry)
+        let decoded = try JSONDecoder().decode(JournalEntry.self, from: data)
+        #expect(decoded == entry)
+        #expect(decoded.sourceAssetIdentifiers == ["ABC/L0/001", "ABC/L0/002"])
+    }
+
+    /// Same backward-compatibility guarantee as `audioFilename`/`mood`/
+    /// `drawingFilename`: entries persisted before moment suggestions existed
+    /// have no such key at all.
+    @Test func decodesOldEntryMissingSourceAssetIdentifiersKey() throws {
+        let json = """
+        {
+            "id": "08D8A3C4-A65B-4119-876A-C7789A460D4F",
+            "date": 800000000,
+            "text": "Written before moment suggestions existed.",
+            "photoFilenames": [],
+            "videoFilenames": [],
+            "dateAdded": 800000000
+        }
+        """
+        let decoded = try JSONDecoder().decode(JournalEntry.self, from: Data(json.utf8))
+        #expect(decoded.sourceAssetIdentifiers == nil)
+    }
+}
+
+struct JournalStreakTests {
+    private func date(daysAgo: Int, calendar: Calendar = .current, referenceDate: Date) -> Date {
+        calendar.date(byAdding: .day, value: -daysAgo, to: referenceDate)!
+    }
+
+    @Test func emptyEntriesHaveNoStreak() {
+        #expect(JournalStreak.currentStreak(entryDates: []) == 0)
+    }
+
+    @Test func consecutiveDaysEndingTodayCountCorrectly() {
+        let today = Date()
+        let dates = [0, 1, 2].map { date(daysAgo: $0, referenceDate: today) }
+        #expect(JournalStreak.currentStreak(entryDates: dates, asOf: today) == 3)
+    }
+
+    @Test func missingTodayStillCountsFromYesterdayWithGrace() {
+        // Wrote every day up to yesterday, nothing yet today — the streak
+        // shouldn't visually break until today actually ends.
+        let today = Date()
+        let dates = [1, 2, 3].map { date(daysAgo: $0, referenceDate: today) }
+        #expect(JournalStreak.currentStreak(entryDates: dates, asOf: today) == 3)
+    }
+
+    @Test func gapBreaksTheStreak() {
+        let today = Date()
+        // Today and yesterday written, then a gap, then older entries —
+        // the streak should only count the unbroken run back from today.
+        let dates = [0, 1, 3, 4].map { date(daysAgo: $0, referenceDate: today) }
+        #expect(JournalStreak.currentStreak(entryDates: dates, asOf: today) == 2)
+    }
+
+    @Test func longestStreakOfEmptyEntriesIsZero() {
+        #expect(JournalStreak.longestStreak(entryDates: []) == 0)
+    }
+
+    @Test func longestStreakFindsASingleLongRun() {
+        let today = Date()
+        let dates = (0...4).map { date(daysAgo: $0, referenceDate: today) }
+        #expect(JournalStreak.longestStreak(entryDates: dates) == 5)
+    }
+
+    @Test func longestStreakPicksTheLongestRunNotTheMostRecent() {
+        let today = Date()
+        // A 2-day run ending yesterday/today, and an older 4-day run further
+        // back — the longest streak should report the older, longer run.
+        let recentRun = [0, 1].map { date(daysAgo: $0, referenceDate: today) }
+        let olderRun = (10...13).map { date(daysAgo: $0, referenceDate: today) }
+        #expect(JournalStreak.longestStreak(entryDates: recentRun + olderRun) == 4)
+    }
+
+    @Test func emptyEntriesHaveNoWeeklyStreak() {
+        #expect(JournalStreak.currentWeeklyStreak(entryDates: []) == 0)
+    }
+
+    @Test func consecutiveWeeksEndingThisWeekCountCorrectly() {
+        let today = Date()
+        // One entry each in this week, last week, and the week before.
+        let dates = [0, 7, 14].map { date(daysAgo: $0, referenceDate: today) }
+        #expect(JournalStreak.currentWeeklyStreak(entryDates: dates, asOf: today) == 3)
+    }
+
+    @Test func missingThisWeekStillCountsFromLastWeekWithGrace() {
+        let today = Date()
+        // Nothing written yet this week, but last week and the week before
+        // were both written — shouldn't visually break until this week ends.
+        let dates = [7, 14].map { date(daysAgo: $0, referenceDate: today) }
+        #expect(JournalStreak.currentWeeklyStreak(entryDates: dates, asOf: today) == 2)
+    }
+
+    @Test func weekGapBreaksTheWeeklyStreak() {
+        let today = Date()
+        // This week and last week written, then a skipped week, then an
+        // older entry — only the unbroken run back from this week counts.
+        let dates = [0, 7, 21].map { date(daysAgo: $0, referenceDate: today) }
+        #expect(JournalStreak.currentWeeklyStreak(entryDates: dates, asOf: today) == 2)
+    }
+
+    @Test func longestWeeklyStreakOfEmptyEntriesIsZero() {
+        #expect(JournalStreak.longestWeeklyStreak(entryDates: []) == 0)
+    }
+
+    @Test func longestWeeklyStreakPicksTheLongestRunNotTheMostRecent() {
+        let today = Date()
+        // A 2-week run ending this week, and an older 4-week run further
+        // back — the longest streak should report the older, longer run.
+        let recentRun = [0, 7].map { date(daysAgo: $0, referenceDate: today) }
+        let olderRun = [70, 77, 84, 91].map { date(daysAgo: $0, referenceDate: today) }
+        #expect(JournalStreak.longestWeeklyStreak(entryDates: recentRun + olderRun) == 4)
+    }
+}
+
+struct JournalExporterTests {
+    @Test func markdownIncludesTitleMoodAndText() {
+        let entry = JournalEntry(
+            date: Date(timeIntervalSince1970: 800000000),
+            title: "A Great Day",
+            text: "Explored the old town.",
+            mood: .amazing
+        )
+        let markdown = JournalExporter.markdown(for: [entry])
+        #expect(markdown.contains("A Great Day"))
+        #expect(markdown.contains("Explored the old town."))
+        #expect(markdown.contains(entry.mood!.emoji))
+        #expect(markdown.contains(entry.mood!.label))
+    }
+
+    @Test func markdownFallsBackToDateWhenNoTitle() {
+        let entry = JournalEntry(date: Date(timeIntervalSince1970: 800000000), text: "No title today.")
+        let markdown = JournalExporter.markdown(for: [entry])
+        #expect(markdown.contains("No title today."))
+        #expect(!markdown.isEmpty)
+    }
+
+    @Test func markdownOrdersEntriesNewestFirst() {
+        let older = JournalEntry(date: Date(timeIntervalSince1970: 700000000), text: "Older entry.")
+        let newer = JournalEntry(date: Date(timeIntervalSince1970: 900000000), text: "Newer entry.")
+        let markdown = JournalExporter.markdown(for: [older, newer])
+        let newerRange = markdown.range(of: "Newer entry.")
+        let olderRange = markdown.range(of: "Older entry.")
+        #expect(newerRange != nil && olderRange != nil)
+        #expect(newerRange!.lowerBound < olderRange!.lowerBound)
+    }
+
+    @Test func markdownOfEmptyEntriesIsEmpty() {
+        #expect(JournalExporter.markdown(for: []).isEmpty)
     }
 }

@@ -13,6 +13,7 @@
 		2A0481CB95B07FB54CA535E5 /* LocationSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52C88F367A390015A7E19888 /* LocationSearchService.swift */; };
 		2CA4614C35662D189660FEAD /* Comebackone_day_1_2App.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC28F3C5BBF45DB055104141 /* Comebackone_day_1_2App.swift */; };
 		2E9CED32D0A2A7FAA3B1E8C0 /* ItineraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B25237B95968251ED1DB0C4B /* ItineraryView.swift */; };
+		76B24E45D6258F3787EC523E /* ItineraryRouteMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF17CC4EF63A8F603FD5D7E9 /* ItineraryRouteMapView.swift */; };
 		36244941F29B31497B3B2B62 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83A8F2D75B66D734F68EE167 /* Models.swift */; };
 		43922C3E5937A7283EA2B3C8 /* QuickCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30E96BCA507F20FD1A31CFE1 /* QuickCameraView.swift */; };
 		46D27D0D6E3EAF456A26F25D /* ItineraryPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFCDC2FB235CD59B43037AD7 /* ItineraryPlanner.swift */; };
@@ -20,6 +21,15 @@
 		9600B7A4F37D5B5E5E4D1F11 /* JournalModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C42184806992510E0F4D16A3 /* JournalModels.swift */; };
 		427957608DE48C87C01307B6 /* JournalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BC6076FCB175B342C78CB16 /* JournalStore.swift */; };
 		83F26420CA23432A0324285A /* JournalSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA55291EAA1269B96BEE543D /* JournalSyncManager.swift */; };
+		6D23369C03D88A5B6E50018E /* JournalMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D351E1EBF105051EE28D7C42 /* JournalMapView.swift */; };
+		C529DA27745CA500C1C2A0E9 /* DrawingStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29C8536E7606434E28856E83 /* DrawingStore.swift */; };
+		75AE20EA134DCDFBA001A5FE /* DrawingCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 649F52E88CF979193DCFEB36 /* DrawingCanvasView.swift */; };
+		0BB8CCE06CD06DD0A262BFA3 /* RichTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F12C6119D699C39A335ED351 /* RichTextEditor.swift */; };
+		FDBE22C0983CDC64CC7F7C22 /* JournalExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 811B923AD8CDEA810BDD6EA4 /* JournalExporter.swift */; };
+		4663E698103AC90560339DAF /* PhotoLibraryMomentFinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A19EF3013C7A420F1E8EF6CD /* PhotoLibraryMomentFinder.swift */; };
+		769A8A3693FDDC806A6B0329 /* JournalInsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14D0107B2E9D21234281D66E /* JournalInsightsView.swift */; };
+		6DC5183BF8ACD59EA54D1281 /* JournalLockManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9506125F19021004C5492EE2 /* JournalLockManager.swift */; };
+		61C62E81B43BDC69C14CBF88 /* JournalReminderManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0144F650F7EA8E737DF06541 /* JournalReminderManager.swift */; };
 		217D4B1A8169BD13B684F763 /* JournalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C73F2ED49DE9189355BC92 /* JournalView.swift */; };
 		3F8305C959AA83C2474924CE /* VideoStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78CCA6D84FECE0FA9578DB1F /* VideoStore.swift */; };
 		7F4AB1B8A37140532F2D905E /* VideoPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23A4253AA14AA0C95623E1B7 /* VideoPlayerView.swift */; };
@@ -36,6 +46,8 @@
 		D28258A438F9DE9E55E6AAE8 /* PhotoStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A382945467C54D16E2A21D96 /* PhotoStore.swift */; };
 		DCD849FB8F2A391C9242AB08 /* MemoryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42E0168C003987F30EDBB362 /* MemoryListView.swift */; };
 		FBA15FF9D02B1696840CA56F /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EFADA9F7285828D71FFED9D /* LocationManager.swift */; };
+		11301182BDC42A05D8D12CB2 /* AdsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4E6E2E2DB12A25BE4E16092 /* AdsManager.swift */; };
+		0A42D761EBA492EF0120F966 /* BannerAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 072F3B7157E5E4B6ADA1929E /* BannerAdView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -80,16 +92,28 @@
 		C42184806992510E0F4D16A3 /* JournalModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalModels.swift; sourceTree = "<group>"; };
 		6BC6076FCB175B342C78CB16 /* JournalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalStore.swift; sourceTree = "<group>"; };
 		EA55291EAA1269B96BEE543D /* JournalSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalSyncManager.swift; sourceTree = "<group>"; };
+		D351E1EBF105051EE28D7C42 /* JournalMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalMapView.swift; sourceTree = "<group>"; };
+		29C8536E7606434E28856E83 /* DrawingStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingStore.swift; sourceTree = "<group>"; };
+		649F52E88CF979193DCFEB36 /* DrawingCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DrawingCanvasView.swift; sourceTree = "<group>"; };
+		F12C6119D699C39A335ED351 /* RichTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextEditor.swift; sourceTree = "<group>"; };
+		811B923AD8CDEA810BDD6EA4 /* JournalExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalExporter.swift; sourceTree = "<group>"; };
+		A19EF3013C7A420F1E8EF6CD /* PhotoLibraryMomentFinder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoLibraryMomentFinder.swift; sourceTree = "<group>"; };
+		14D0107B2E9D21234281D66E /* JournalInsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalInsightsView.swift; sourceTree = "<group>"; };
+		9506125F19021004C5492EE2 /* JournalLockManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalLockManager.swift; sourceTree = "<group>"; };
+		0144F650F7EA8E737DF06541 /* JournalReminderManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalReminderManager.swift; sourceTree = "<group>"; };
 		B2C73F2ED49DE9189355BC92 /* JournalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalView.swift; sourceTree = "<group>"; };
 		78CCA6D84FECE0FA9578DB1F /* VideoStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoStore.swift; sourceTree = "<group>"; };
 		23A4253AA14AA0C95623E1B7 /* VideoPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlayerView.swift; sourceTree = "<group>"; };
 		1E358645F6079EB064AEC65B /* LinkPreviewImageLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkPreviewImageLoader.swift; sourceTree = "<group>"; };
 		B25237B95968251ED1DB0C4B /* ItineraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItineraryView.swift; sourceTree = "<group>"; };
+		FF17CC4EF63A8F603FD5D7E9 /* ItineraryRouteMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItineraryRouteMapView.swift; sourceTree = "<group>"; };
 		B6D1949ADAE89F7BE996D112 /* AddMemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddMemoryView.swift; sourceTree = "<group>"; };
 		BC28F3C5BBF45DB055104141 /* Comebackone_day_1_2App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Comebackone_day_1_2App.swift; sourceTree = "<group>"; };
 		CED38BE71C27AE5DB10490D5 /* EditMemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditMemoryView.swift; sourceTree = "<group>"; };
 		EBDC1736A6B06BF24DAF1830 /* MemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryStore.swift; sourceTree = "<group>"; };
 		F52BDDC1FE8FA0766256F101 /* CloudSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudSyncManager.swift; sourceTree = "<group>"; };
+		D4E6E2E2DB12A25BE4E16092 /* AdsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdsManager.swift; sourceTree = "<group>"; };
+		072F3B7157E5E4B6ADA1929E /* BannerAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerAdView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -175,6 +199,15 @@
 				C42184806992510E0F4D16A3 /* JournalModels.swift */,
 				6BC6076FCB175B342C78CB16 /* JournalStore.swift */,
 				EA55291EAA1269B96BEE543D /* JournalSyncManager.swift */,
+				D351E1EBF105051EE28D7C42 /* JournalMapView.swift */,
+				29C8536E7606434E28856E83 /* DrawingStore.swift */,
+				649F52E88CF979193DCFEB36 /* DrawingCanvasView.swift */,
+				F12C6119D699C39A335ED351 /* RichTextEditor.swift */,
+				811B923AD8CDEA810BDD6EA4 /* JournalExporter.swift */,
+				A19EF3013C7A420F1E8EF6CD /* PhotoLibraryMomentFinder.swift */,
+				14D0107B2E9D21234281D66E /* JournalInsightsView.swift */,
+				9506125F19021004C5492EE2 /* JournalLockManager.swift */,
+				0144F650F7EA8E737DF06541 /* JournalReminderManager.swift */,
 				B2C73F2ED49DE9189355BC92 /* JournalView.swift */,
 				D9785C3A2A8BD75296B34DEB /* WeatherService.swift */,
 				6E8C88C7F221D4F99983D630 /* VoiceNoteStore.swift */,
@@ -182,6 +215,9 @@
 				1E358645F6079EB064AEC65B /* LinkPreviewImageLoader.swift */,
 				0B10FB53DB621928AD60557A /* SubscriptionManager.swift */,
 				B25237B95968251ED1DB0C4B /* ItineraryView.swift */,
+				FF17CC4EF63A8F603FD5D7E9 /* ItineraryRouteMapView.swift */,
+				D4E6E2E2DB12A25BE4E16092 /* AdsManager.swift */,
+				072F3B7157E5E4B6ADA1929E /* BannerAdView.swift */,
 				25C524F4B1F913431FD9DE83 /* Assets.xcassets */,
 				284AD1DCDBAC27CBBE1CC46A /* Comebackone day 1.2.entitlements */,
 			);
@@ -205,6 +241,7 @@
 			);
 			name = "Comebackone day 1.2";
 			packageProductDependencies = (
+				7C370D7B89001108D53F97CF /* GoogleMobileAds */,
 			);
 			productName = "Comebackone day 1.2";
 			productReference = 278E7BF42F0B9E32002A768F /* Comebackone day 1.2.app */;
@@ -288,6 +325,9 @@
 			);
 			mainGroup = 278E7BEB2F0B9E32002A768F;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				EBF6418E12D5EF856A11A6A7 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 278E7BF52F0B9E32002A768F /* Products */;
 			projectDirPath = "";
@@ -331,6 +371,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				2CA4614C35662D189660FEAD /* Comebackone_day_1_2App.swift in Sources */,
+				11301182BDC42A05D8D12CB2 /* AdsManager.swift in Sources */,
+				0A42D761EBA492EF0120F966 /* BannerAdView.swift in Sources */,
 				A5E47B63B2EA0718BC05D37D /* AddMemoryView.swift in Sources */,
 				246A61501A2A1272B832D79B /* CameraView.swift in Sources */,
 				8044A83DFD2F23A8ADEFCEAC /* CloudSyncManager.swift in Sources */,
@@ -352,12 +394,22 @@
 				9600B7A4F37D5B5E5E4D1F11 /* JournalModels.swift in Sources */,
 				427957608DE48C87C01307B6 /* JournalStore.swift in Sources */,
 				83F26420CA23432A0324285A /* JournalSyncManager.swift in Sources */,
+				6D23369C03D88A5B6E50018E /* JournalMapView.swift in Sources */,
+				C529DA27745CA500C1C2A0E9 /* DrawingStore.swift in Sources */,
+				75AE20EA134DCDFBA001A5FE /* DrawingCanvasView.swift in Sources */,
+				0BB8CCE06CD06DD0A262BFA3 /* RichTextEditor.swift in Sources */,
+				FDBE22C0983CDC64CC7F7C22 /* JournalExporter.swift in Sources */,
+				4663E698103AC90560339DAF /* PhotoLibraryMomentFinder.swift in Sources */,
+				769A8A3693FDDC806A6B0329 /* JournalInsightsView.swift in Sources */,
+				6DC5183BF8ACD59EA54D1281 /* JournalLockManager.swift in Sources */,
+				61C62E81B43BDC69C14CBF88 /* JournalReminderManager.swift in Sources */,
 				217D4B1A8169BD13B684F763 /* JournalView.swift in Sources */,
 				3F8305C959AA83C2474924CE /* VideoStore.swift in Sources */,
 				7F4AB1B8A37140532F2D905E /* VideoPlayerView.swift in Sources */,
 				315E6BF2623D06FAF9782B64 /* LinkPreviewImageLoader.swift in Sources */,
 				2728D1A1237943DBFA7E9F4F /* SubscriptionManager.swift in Sources */,
 				2E9CED32D0A2A7FAA3B1E8C0 /* ItineraryView.swift in Sources */,
+				76B24E45D6258F3787EC523E /* ItineraryRouteMapView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -719,6 +771,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		EBF6418E12D5EF856A11A6A7 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		7C370D7B89001108D53F97CF /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = EBF6418E12D5EF856A11A6A7 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 278E7BEC2F0B9E32002A768F /* Project object */;
 }

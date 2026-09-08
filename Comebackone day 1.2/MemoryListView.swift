@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import StoreKit
 
 struct MemoryListView: View {
     @EnvironmentObject var store: MemoryStore
@@ -146,9 +147,6 @@ struct MemoryListView: View {
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    ItineraryButton()
-                }
-                ToolbarItem(placement: .primaryAction) {
                     SettingsButton()
                 }
             }
@@ -171,6 +169,9 @@ struct MemoryListView: View {
 /// scroll position mid-scroll whenever a location update landed.
 private struct SettingsButton: View {
     @EnvironmentObject var locationManager: LocationManager
+    @EnvironmentObject var adsManager: AdsManager
+    @EnvironmentObject var journalLockManager: JournalLockManager
+    @EnvironmentObject var journalReminderManager: JournalReminderManager
     @State private var showingSettings = false
 
     var body: some View {
@@ -182,13 +183,32 @@ private struct SettingsButton: View {
         .sheet(isPresented: $showingSettings) {
             SettingsSheet()
                 .environmentObject(locationManager)
+                .environmentObject(adsManager)
+                .environmentObject(journalLockManager)
+                .environmentObject(journalReminderManager)
         }
     }
 }
 
 private struct SettingsSheet: View {
     @EnvironmentObject var locationManager: LocationManager
+    @EnvironmentObject var adsManager: AdsManager
+    @EnvironmentObject var journalLockManager: JournalLockManager
+    @EnvironmentObject var journalReminderManager: JournalReminderManager
     @Environment(\.dismiss) private var dismiss
+
+    /// DatePicker needs a Date; the manager stores hour/minute as
+    /// DateComponents (there's no meaningful day/month/year for a daily
+    /// recurring reminder). Bridges between the two, anchored to today.
+    private var reminderTimeBinding: Binding<Date> {
+        Binding(
+            get: { Calendar.current.date(from: journalReminderManager.reminderTime) ?? Date() },
+            set: { newDate in
+                let components = Calendar.current.dateComponents([.hour, .minute], from: newDate)
+                journalReminderManager.reminderTime = components
+            }
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -206,6 +226,69 @@ private struct SettingsSheet: View {
                     ))
                 } footer: {
                     Text("Get a notification when you're near a place on your Want to Go list — even when the app isn't open. This needs Always location access and notification permission, both requested when you turn it on.")
+                }
+
+                Section {
+                    Toggle("Lock Journal with Face ID", isOn: $journalLockManager.isLockEnabled)
+                } footer: {
+                    Text("Require Face ID or your passcode to open the Journal tab.")
+                }
+
+                Section {
+                    Toggle("Daily Reminder", isOn: Binding(
+                        get: { journalReminderManager.isReminderEnabled },
+                        set: { newValue in
+                            if newValue {
+                                journalReminderManager.enable()
+                            } else {
+                                journalReminderManager.disable()
+                            }
+                        }
+                    ))
+                    if journalReminderManager.isReminderEnabled {
+                        DatePicker("Remind me at", selection: reminderTimeBinding, displayedComponents: .hourAndMinute)
+                    }
+                } header: {
+                    Text("Journal")
+                } footer: {
+                    Text("A daily notification nudging you to write in your journal.")
+                }
+
+                Section {
+                    if adsManager.isAdRemoved {
+                        Label("Ads removed", systemImage: "checkmark.seal.fill")
+                            .foregroundStyle(.green)
+                    } else if let product = adsManager.product {
+                        Button {
+                            Task { await adsManager.purchase() }
+                        } label: {
+                            HStack {
+                                Text("Remove Ads")
+                                Spacer()
+                                Text(product.displayPrice)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    } else if adsManager.hasAttemptedLoad {
+                        Text("Remove Ads is unavailable right now.")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ProgressView()
+                    }
+
+                    Button("Restore Purchases") {
+                        Task { await adsManager.restorePurchases() }
+                    }
+
+                    if let error = adsManager.purchaseError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                } header: {
+                    Text("Ads")
+                } footer: {
+                    Text("A one-time purchase that removes ads from Come Back One Day, forever.")
                 }
             }
             .navigationTitle("Settings")

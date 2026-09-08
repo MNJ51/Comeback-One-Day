@@ -5,7 +5,20 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Come Back One Day uses the microphone to record voice notes about the places you save.</string>
+	<string>Come Back One Day uses the microphone to record voice notes about the places you save and audio clips attached to journal entries.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Come Back One Day uses Face ID to keep your journal entries private.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Come Back One Day looks for recent photo moments in your library to suggest as journal entries.</string>
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-3940256099942544~1458002511</string>
+	<key>SKAdNetworkItems</key>
+	<array>
+		<dict>
+			<key>SKAdNetworkIdentifier</key>
+			<string>cstr6suwn9.skadnetwork</string>
+		</dict>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

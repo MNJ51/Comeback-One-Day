@@ -1,7 +1,23 @@
 {
   "identifier" : "04415B1E-7051-424A-BDB5-FCA7397A8890",
   "nonRenewingSubscriptions" : [],
-  "products" : [],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "9C2F0F5B",
+      "localizations" : [
+        {
+          "description" : "Removes ads from Come Back One Day, forever.",
+          "displayName" : "Remove Ads",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.michaeljee.Comebackone-day-1-1.removeads",
+      "referenceName" : "Remove Ads",
+      "type" : "NonConsumable"
+    }
+  ],
   "settings" : {
     "_locale" : "en_US",
     "_storefront" : "USA",

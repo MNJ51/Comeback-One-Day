@@ -19,11 +19,27 @@ struct ContentView: View {
     @StateObject private var journalStore = JournalStore()
     @StateObject private var locationManager = LocationManager()
     @StateObject private var subscriptionManager = SubscriptionManager()
+    @StateObject private var adsManager = AdsManager()
+    @StateObject private var journalLockManager = JournalLockManager()
+    @StateObject private var journalReminderManager = JournalReminderManager()
     @Environment(\.scenePhase) private var scenePhase
     @State private var pendingImport: TravelMemory?
     @State private var selectedTab: AppTab = .map
     @State private var showingAddMemory = false
     @State private var showingQuickCamera = false
+
+    /// Ads only show on Map/Places (not Journal), and never once purchased away.
+    /// Computed here — rather than nesting a safeAreaInset inside each tab's own
+    /// view — because a safeAreaInset added from *inside* a TabView page gets
+    /// clipped by the page's own container and never actually paints on screen,
+    /// even though it lays out with a correct, non-hidden frame.
+    private var showsAdBanner: Bool {
+        !adsManager.isAdRemoved && (selectedTab == .map || selectedTab == .places)
+    }
+
+    private var bottomReservedHeight: CGFloat {
+        BottomActionBar.height + (showsAdBanner ? AdsManager.bannerHeight : 0)
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -36,26 +52,38 @@ struct ContentView: View {
                     .tag(AppTab.places)
                     .toolbar(.hidden, for: .tabBar)
 
-                JournalListView()
-                    .tag(AppTab.journal)
-                    .toolbar(.hidden, for: .tabBar)
+                JournalLockGateView {
+                    JournalListView()
+                }
+                .tag(AppTab.journal)
+                .toolbar(.hidden, for: .tabBar)
             }
             .safeAreaInset(edge: .bottom) {
                 // Reserves room so list content doesn't sit behind the floating
-                // bar below; the map still goes edge-to-edge under it as before.
-                Color.clear.frame(height: BottomActionBar.height)
+                // bar (and ad banner) below; the map still goes edge-to-edge
+                // under it as before.
+                Color.clear.frame(height: bottomReservedHeight)
             }
 
-            BottomActionBar(
-                selectedTab: $selectedTab,
-                showingAddMemory: $showingAddMemory,
-                showingQuickCamera: $showingQuickCamera
-            )
+            VStack(spacing: 0) {
+                if showsAdBanner {
+                    AdBanner()
+                }
+
+                BottomActionBar(
+                    selectedTab: $selectedTab,
+                    showingAddMemory: $showingAddMemory,
+                    showingQuickCamera: $showingQuickCamera
+                )
+            }
         }
         .environmentObject(store)
         .environmentObject(journalStore)
         .environmentObject(locationManager)
         .environmentObject(subscriptionManager)
+        .environmentObject(adsManager)
+        .environmentObject(journalLockManager)
+        .environmentObject(journalReminderManager)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task {
@@ -100,41 +128,49 @@ struct ContentView: View {
     }
 }
 
-/// The single floating bar along the bottom: Map/Places tab switching plus the
-/// Camera and Add actions, all in one line instead of stacked in two rows.
+/// The floating bar along the bottom, two rows: Map/Places/Journal/Itinerary
+/// tab-style switching on top, Camera and Add actions underneath. Itinerary
+/// lives here (not buried in the Places toolbar) so "plan a day" is as
+/// discoverable as the other core sections from the very first screen.
 struct BottomActionBar: View {
     @Binding var selectedTab: AppTab
     @Binding var showingAddMemory: Bool
     @Binding var showingQuickCamera: Bool
 
-    static let height: CGFloat = 92
+    static let height: CGFloat = 132
 
     var body: some View {
-        HStack(spacing: 0) {
-            tabButton(icon: "map.fill", label: "Map", isSelected: selectedTab == .map) {
-                selectedTab = .map
+        VStack(spacing: 6) {
+            HStack(spacing: 0) {
+                tabButton(icon: "map.fill", label: "Map", isSelected: selectedTab == .map) {
+                    selectedTab = .map
+                }
+
+                tabButton(icon: "list.bullet", label: "Places", isSelected: selectedTab == .places) {
+                    selectedTab = .places
+                }
+
+                tabButton(icon: "book.closed.fill", label: "Journal", isSelected: selectedTab == .journal) {
+                    selectedTab = .journal
+                }
+
+                ItineraryButton()
             }
 
-            tabButton(icon: "list.bullet", label: "Places", isSelected: selectedTab == .places) {
-                selectedTab = .places
-            }
+            HStack(spacing: 0) {
+                if CameraView.isAvailable {
+                    largeButton(icon: "camera.circle.fill", tint: .green) {
+                        showingQuickCamera = true
+                    }
+                }
 
-            tabButton(icon: "book.closed.fill", label: "Journal", isSelected: selectedTab == .journal) {
-                selectedTab = .journal
-            }
-
-            if CameraView.isAvailable {
-                largeButton(icon: "camera.circle.fill", tint: .green) {
-                    showingQuickCamera = true
+                largeButton(icon: "plus.circle.fill", tint: .blue) {
+                    showingAddMemory = true
                 }
             }
-
-            largeButton(icon: "plus.circle.fill", tint: .blue) {
-                showingAddMemory = true
-            }
         }
-        .padding(.vertical, 8)
-        .background(.thickMaterial, in: Capsule())
+        .padding(.vertical, 10)
+        .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 26))
         .shadow(radius: 4)
         .padding(.horizontal)
     }
@@ -163,7 +199,6 @@ struct BottomActionBar: View {
             Image(systemName: icon)
                 .font(.system(size: 50))
                 .foregroundStyle(tint)
-                .shadow(radius: 3)
                 .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
@@ -254,7 +289,7 @@ struct FilterChip: View {
                 .font(.subheadline.weight(.medium))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(isSelected ? AnyShapeStyle(color) : AnyShapeStyle(.thickMaterial), in: Capsule())
+                .background(isSelected ? AnyShapeStyle(color) : AnyShapeStyle(.ultraThickMaterial), in: Capsule())
                 .foregroundStyle(isSelected ? .white : .primary)
                 .shadow(radius: 2)
         }

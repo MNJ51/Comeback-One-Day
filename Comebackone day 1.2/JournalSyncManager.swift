@@ -6,8 +6,8 @@
 //  CKSyncEngine — a separate zone/record type from CloudSyncManager (which
 //  handles TravelMemory), but the same private database and container, so
 //  multiple independent sync engines coexist against one CKContainer. This
-//  mirrors CloudSyncManager's structure closely; journal entries carry no
-//  photo/video assets so there's no CKAsset handling needed.
+//  mirrors CloudSyncManager's structure closely, including CKAsset handling
+//  for photos, videos, and the entry's optional voice recording.
 //
 
 import CloudKit
@@ -19,6 +19,12 @@ final class JournalSyncManager {
 
     private weak var store: JournalStore?
     private var engine: CKSyncEngine!
+
+    /// Notifies the store that an entry's save has been confirmed by
+    /// CloudKit (`true`) — set by JournalStore, invoked from the sent/fetched
+    /// record-zone-changes handlers below, mirroring how applyRemoteSave/
+    /// applyRemoteDelete already flow store<->sync-manager.
+    var onSyncStatusChange: ((UUID, Bool) -> Void)?
 
     private let stateURL: URL
     private let systemFieldsURL: URL
@@ -112,6 +118,7 @@ final class JournalSyncManager {
         for record in event.savedRecords {
             if let uuid = UUID(uuidString: record.recordID.recordName) {
                 systemFields[uuid] = encodeSystemFields(record)
+                onSyncStatusChange?(uuid, true)
             }
         }
 
@@ -122,6 +129,9 @@ final class JournalSyncManager {
                 if let server = failure.error.serverRecord {
                     apply(serverRecord: server)
                 }
+                if let uuid = UUID(uuidString: recordID.recordName) {
+                    onSyncStatusChange?(uuid, false)
+                }
             case .zoneNotFound:
                 engine.state.add(pendingDatabaseChanges: [.saveZone(CKRecordZone(zoneID: Self.zoneID))])
                 engine.state.add(pendingRecordZoneChanges: [.saveRecord(recordID)])
@@ -131,7 +141,11 @@ final class JournalSyncManager {
                 }
                 engine.state.add(pendingRecordZoneChanges: [.saveRecord(recordID)])
             default:
-                break
+                // Permanent failure (quota exceeded, not authenticated, etc.) —
+                // nothing will retry this save, so stop showing it as pending.
+                if let uuid = UUID(uuidString: recordID.recordName) {
+                    onSyncStatusChange?(uuid, false)
+                }
             }
         }
         persistSystemFields()
@@ -166,6 +180,7 @@ final class JournalSyncManager {
         }
 
         record["date"] = entry.date
+        record["title"] = entry.title
         record["text"] = entry.text
         record["photoFilenames"] = entry.photoFilenames
         record["photos"] = entry.photoFilenames.map { CKAsset(fileURL: PhotoStore.url(for: $0)) }
@@ -180,6 +195,12 @@ final class JournalSyncManager {
         record["weatherSymbolName"] = entry.weatherSymbolName
         record["weatherDescription"] = entry.weatherDescription
         record["dateAdded"] = entry.dateAdded
+        record["audioFilename"] = entry.audioFilename
+        record["audio"] = entry.audioFilename.map { CKAsset(fileURL: VoiceNoteStore.url(for: $0)) }
+        record["mood"] = entry.mood?.rawValue
+        record["drawingFilename"] = entry.drawingFilename
+        record["drawing"] = entry.drawingFilename.map { CKAsset(fileURL: DrawingStore.url(for: $0)) }
+        record["sourceAssetIdentifiers"] = entry.sourceAssetIdentifiers
         return record
     }
 
@@ -213,9 +234,28 @@ final class JournalSyncManager {
             }
         }
 
+        let audioFilename = record["audioFilename"] as? String
+        if let audioFilename, let audioAsset = record["audio"] as? CKAsset {
+            let destination = VoiceNoteStore.url(for: audioFilename)
+            if !FileManager.default.fileExists(atPath: destination.path),
+               let source = audioAsset.fileURL {
+                try? FileManager.default.copyItem(at: source, to: destination)
+            }
+        }
+
+        let drawingFilename = record["drawingFilename"] as? String
+        if let drawingFilename, let drawingAsset = record["drawing"] as? CKAsset {
+            let destination = DrawingStore.url(for: drawingFilename)
+            if !FileManager.default.fileExists(atPath: destination.path),
+               let source = drawingAsset.fileURL {
+                try? FileManager.default.copyItem(at: source, to: destination)
+            }
+        }
+
         let entry = JournalEntry(
             id: uuid,
             date: date,
+            title: record["title"] as? String,
             text: text,
             photoFilenames: photoFilenames,
             videoFilenames: videoFilenames,
@@ -227,7 +267,11 @@ final class JournalSyncManager {
             weatherTemperatureCelsius: record["weatherTemperatureCelsius"] as? Double,
             weatherSymbolName: record["weatherSymbolName"] as? String,
             weatherDescription: record["weatherDescription"] as? String,
-            dateAdded: record["dateAdded"] as? Date ?? Date()
+            dateAdded: record["dateAdded"] as? Date ?? Date(),
+            audioFilename: audioFilename,
+            mood: (record["mood"] as? String).flatMap(JournalMood.init(rawValue:)),
+            drawingFilename: drawingFilename,
+            sourceAssetIdentifiers: record["sourceAssetIdentifiers"] as? [String]
         )
         store?.applyRemoteSave(entry)
     }

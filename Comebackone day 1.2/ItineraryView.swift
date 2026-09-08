@@ -27,14 +27,22 @@ struct ItineraryButton: View {
         Button {
             presentedSheet = subscriptionManager.isSubscribed ? .planner : .paywall
         } label: {
-            // A plain "map" icon read as "show the map" — easy to mistake for
-            // the Map tab itself. wand.and.stars (the same icon used in the
-            // paywall this button leads to) reads as "generate something"
-            // instead, and the teal tint matches that screen's branding so
-            // the connection is visually obvious before you even tap it.
-            Label("Plan a Day", systemImage: "wand.and.stars")
+            // wand.and.stars (the same icon used in the paywall this button
+            // leads to) reads as "generate something" rather than "show a
+            // map", and the teal tint matches that screen's branding so the
+            // connection is visually obvious before you even tap it. Styled
+            // to match BottomActionBar's own tab buttons (icon over caption)
+            // since this button now lives in that same row.
+            VStack(spacing: 3) {
+                Image(systemName: "wand.and.stars")
+                    .font(.system(size: 21))
+                Text("Itinerary")
+                    .font(.caption2)
+            }
+            .foregroundStyle(.teal)
+            .frame(maxWidth: .infinity)
         }
-        .tint(.teal)
+        .buttonStyle(.plain)
         // .sheet(item:) re-invokes its content closure whenever the item's
         // identity changes — unlike .sheet(isPresented:) with branching content,
         // which in practice didn't reliably re-render when isSubscribed flipped
@@ -173,8 +181,10 @@ struct ItineraryPlannerView: View {
     @State private var maxDistanceKm: Double = 3
     @State private var travelMode: ItineraryTravelMode = .walking
     @State private var stops: [ItineraryStop] = []
+    @State private var searchedRadiusKm: Double = 0
     @State private var isSearching = false
     @State private var showingEmptyResultAlert = false
+    @State private var showingRouteMap = false
     /// Flips true if we've been waiting for a GPS fix for a while — gives the
     /// user an explicit, informed way out instead of a button that could
     /// otherwise stay disabled forever if a fix never arrives (weak signal,
@@ -187,6 +197,15 @@ struct ItineraryPlannerView: View {
 
     private var origin: CLLocationCoordinate2D {
         locationManager.currentLocation ?? Self.fallbackCoordinate
+    }
+
+    /// True once results come back searched wider than the distance the user
+    /// actually picked — happens when that radius didn't have enough real
+    /// places to fill the day. Compared with a small margin since the search
+    /// radius is capped/rounded in ways that can put it fractionally above
+    /// the requested km even when no expansion happened.
+    private var wasRadiusExpanded: Bool {
+        searchedRadiusKm > maxDistanceKm + 0.1
     }
 
     /// True while location access is authorized but we don't have a fix yet
@@ -223,6 +242,13 @@ struct ItineraryPlannerView: View {
                 }
                 if !stops.isEmpty {
                     ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            showingRouteMap = true
+                        } label: {
+                            Image(systemName: "map")
+                        }
+                    }
+                    ToolbarItem(placement: .primaryAction) {
                         Button("Start Over") {
                             stops = []
                         }
@@ -234,6 +260,9 @@ struct ItineraryPlannerView: View {
                 try? await Task.sleep(for: Self.fallbackLocationTimeout)
                 guard !Task.isCancelled else { return }
                 locationTimedOut = true
+            }
+            .sheet(isPresented: $showingRouteMap) {
+                ItineraryRouteMapView(stops: stops, origin: origin, travelMode: travelMode)
             }
         }
     }
@@ -307,7 +336,9 @@ struct ItineraryPlannerView: View {
                 Button {
                     Task {
                         isSearching = true
-                        stops = await ItineraryPlanner.discover(vibe: vibe, origin: origin, maxDistanceKm: maxDistanceKm)
+                        let result = await ItineraryPlanner.discover(vibe: vibe, origin: origin, maxDistanceKm: maxDistanceKm)
+                        stops = result.stops
+                        searchedRadiusKm = result.searchedRadiusKm
                         isSearching = false
                         if stops.isEmpty {
                             showingEmptyResultAlert = true
@@ -343,10 +374,16 @@ struct ItineraryPlannerView: View {
                     ItineraryStopRow(stop: stop, index: index + 1, store: store, travelMode: travelMode)
                 }
             } header: {
-                Text("\(vibe.rawValue) day · within \(Int(maxDistanceKm)) km · \(travelMode.rawValue)")
+                if wasRadiusExpanded {
+                    Text("\(vibe.rawValue) day · within \(Int(searchedRadiusKm)) km · \(travelMode.rawValue)")
+                } else {
+                    Text("\(vibe.rawValue) day · within \(Int(maxDistanceKm)) km · \(travelMode.rawValue)")
+                }
             } footer: {
                 if locationManager.currentLocation == nil {
                     Text("⚠️ Searched near a default location, not where you actually are — your device's real location wasn't available. Tap a place for details, or tap the directions icon to get there by \(travelMode.rawValue.lowercased()).")
+                } else if wasRadiusExpanded {
+                    Text("Only a few \(vibe.rawValue.lowercased()) spots were within \(Int(maxDistanceKm)) km, so the search expanded to \(Int(searchedRadiusKm)) km to fill out the day. Tap a place for details, or tap the directions icon to get there by \(travelMode.rawValue.lowercased()).")
                 } else {
                     Text("Stops are ordered from your current location. Tap a place for details, or tap the directions icon to get there by \(travelMode.rawValue.lowercased()).")
                 }
