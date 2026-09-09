@@ -4,12 +4,14 @@
 //
 
 import SwiftUI
+import MapKit
 import PhotosUI
 import CoreTransferable
 
 struct EditMemoryView: View {
     @Environment(\.dismiss) var dismiss
     @EnvironmentObject var store: MemoryStore
+    @EnvironmentObject var locationManager: LocationManager
 
     let memory: TravelMemory
 
@@ -57,6 +59,12 @@ struct EditMemoryView: View {
     @State private var tripName: String
     @State private var voiceNoteFilename: String?
 
+    @State private var selectedCoordinate: CLLocationCoordinate2D
+    @State private var selectedPlaceLabel: String?
+    @State private var selectedAddress: String?
+    @State private var previewCameraPosition: MapCameraPosition = .automatic
+    @State private var showingAdjustLocation = false
+
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var showingCamera = false
     @State private var capturedImage: UIImage?
@@ -86,6 +94,9 @@ struct EditMemoryView: View {
         _videos = State(initialValue: memory.videoFilenames.map { EditableVideo(filename: $0, temporaryURL: nil) })
         _tripName = State(initialValue: memory.tripName ?? "")
         _voiceNoteFilename = State(initialValue: memory.voiceNoteFilename)
+        _selectedCoordinate = State(initialValue: memory.coordinate)
+        _selectedPlaceLabel = State(initialValue: memory.name)
+        _selectedAddress = State(initialValue: memory.address)
     }
 
     private var canSave: Bool {
@@ -151,6 +162,22 @@ struct EditMemoryView: View {
                         .listRowInsets(EdgeInsets())
                         .padding(.horizontal)
                         .padding(.vertical, 4)
+                    }
+                }
+
+                Section("Location") {
+                    SelectedLocationPreview(
+                        coordinate: selectedCoordinate,
+                        placeLabel: selectedPlaceLabel,
+                        address: selectedAddress,
+                        markerTitle: name.isEmpty ? "Memory" : name,
+                        cameraPosition: $previewCameraPosition
+                    )
+
+                    Button {
+                        showingAdjustLocation = true
+                    } label: {
+                        Label("Adjust on Map", systemImage: "mappin.and.ellipse")
                     }
                 }
 
@@ -264,6 +291,10 @@ struct EditMemoryView: View {
             .sheet(isPresented: $showingCamera) {
                 CameraView(image: $capturedImage)
             }
+            .sheet(isPresented: $showingAdjustLocation) {
+                AdjustLocationView(initialCoordinate: selectedCoordinate, onConfirm: applyPinnedLocation)
+                    .environmentObject(locationManager)
+            }
             .onChange(of: capturedImage) { _, newValue in
                 if let image = newValue, let data = image.jpegData(compressionQuality: 0.8) {
                     photos.append(EditablePhoto(filename: nil, data: data))
@@ -371,6 +402,30 @@ struct EditMemoryView: View {
         }
     }
 
+    /// Same unconditional-overwrite behavior as AddMemoryView's equivalent —
+    /// a manually dropped pin is a deliberate correction, not an incidental
+    /// suggestion, so every location field is replaced. Non-location fields
+    /// (notes, rating, photos, etc.) are untouched.
+    private func applyPinnedLocation(_ place: PinnedLocation) {
+        selectedCoordinate = place.coordinate
+        recenterPreview(on: place.coordinate)
+        selectedPlaceLabel = place.name
+        selectedAddress = place.address
+        if let placeName = place.name {
+            name = placeName
+        }
+        website = place.website ?? ""
+        phoneNumber = place.phoneNumber ?? ""
+        category = place.category ?? .location
+    }
+
+    private func recenterPreview(on coordinate: CLLocationCoordinate2D) {
+        previewCameraPosition = .region(MKCoordinateRegion(
+            center: coordinate,
+            span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+        ))
+    }
+
     private func saveChanges() async {
         isSaving = true
         defer { isSaving = false }
@@ -385,6 +440,9 @@ struct EditMemoryView: View {
         updated.rating = rating
         updated.notes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
         updated.tripName = tripName.trimmedNonEmpty
+        updated.latitude = selectedCoordinate.latitude
+        updated.longitude = selectedCoordinate.longitude
+        updated.address = selectedAddress
 
         // The old voice note file, if it was replaced or removed this session.
         if voiceNoteFilename != memory.voiceNoteFilename, let oldFilename = memory.voiceNoteFilename {

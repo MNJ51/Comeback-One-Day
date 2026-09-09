@@ -41,6 +41,9 @@
 		971361CB429A69A3F6D7BDA6 /* EditMemoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CED38BE71C27AE5DB10490D5 /* EditMemoryView.swift */; };
 		9AEB07D7E3A7AD1AA7C7AD4E /* MemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBDC1736A6B06BF24DAF1830 /* MemoryStore.swift */; };
 		A5E47B63B2EA0718BC05D37D /* AddMemoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6D1949ADAE89F7BE996D112 /* AddMemoryView.swift */; };
+		E025BE385DC73CA13A8B1091 /* FindView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA61F23CB07422C6862481F /* FindView.swift */; };
+		84DCFC54089F7F2DAEFA4E50 /* PointOfInterestSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64F325EC1773F0A21DA298A2 /* PointOfInterestSearch.swift */; };
+		71441E3EBCF4B75F348F2C8F /* AdjustLocationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BD26DDD064E2969739AFF45 /* AdjustLocationView.swift */; };
 		BB38265E7CD9DA6EDF035727 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A29CE92663170DA972A52525 /* ContentView.swift */; };
 		CFE36DE46576CA10911A9C75 /* StarRatingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A52514A4A00C7613AFACBDD3 /* StarRatingView.swift */; };
 		D28258A438F9DE9E55E6AAE8 /* PhotoStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A382945467C54D16E2A21D96 /* PhotoStore.swift */; };
@@ -108,6 +111,9 @@
 		B25237B95968251ED1DB0C4B /* ItineraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItineraryView.swift; sourceTree = "<group>"; };
 		FF17CC4EF63A8F603FD5D7E9 /* ItineraryRouteMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItineraryRouteMapView.swift; sourceTree = "<group>"; };
 		B6D1949ADAE89F7BE996D112 /* AddMemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddMemoryView.swift; sourceTree = "<group>"; };
+		9AA61F23CB07422C6862481F /* FindView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindView.swift; sourceTree = "<group>"; };
+		64F325EC1773F0A21DA298A2 /* PointOfInterestSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PointOfInterestSearch.swift; sourceTree = "<group>"; };
+		6BD26DDD064E2969739AFF45 /* AdjustLocationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustLocationView.swift; sourceTree = "<group>"; };
 		BC28F3C5BBF45DB055104141 /* Comebackone_day_1_2App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Comebackone_day_1_2App.swift; sourceTree = "<group>"; };
 		CED38BE71C27AE5DB10490D5 /* EditMemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditMemoryView.swift; sourceTree = "<group>"; };
 		EBDC1736A6B06BF24DAF1830 /* MemoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryStore.swift; sourceTree = "<group>"; };
@@ -180,6 +186,9 @@
 			children = (
 				BC28F3C5BBF45DB055104141 /* Comebackone_day_1_2App.swift */,
 				B6D1949ADAE89F7BE996D112 /* AddMemoryView.swift */,
+				9AA61F23CB07422C6862481F /* FindView.swift */,
+				64F325EC1773F0A21DA298A2 /* PointOfInterestSearch.swift */,
+				6BD26DDD064E2969739AFF45 /* AdjustLocationView.swift */,
 				7025F4F007D8D687C830EC64 /* CameraView.swift */,
 				F52BDDC1FE8FA0766256F101 /* CloudSyncManager.swift */,
 				A29CE92663170DA972A52525 /* ContentView.swift */,
@@ -374,6 +383,9 @@
 				11301182BDC42A05D8D12CB2 /* AdsManager.swift in Sources */,
 				0A42D761EBA492EF0120F966 /* BannerAdView.swift in Sources */,
 				A5E47B63B2EA0718BC05D37D /* AddMemoryView.swift in Sources */,
+				E025BE385DC73CA13A8B1091 /* FindView.swift in Sources */,
+				84DCFC54089F7F2DAEFA4E50 /* PointOfInterestSearch.swift in Sources */,
+				71441E3EBCF4B75F348F2C8F /* AdjustLocationView.swift in Sources */,
 				246A61501A2A1272B832D79B /* CameraView.swift in Sources */,
 				8044A83DFD2F23A8ADEFCEAC /* CloudSyncManager.swift in Sources */,
 				BB38265E7CD9DA6EDF035727 /* ContentView.swift in Sources */,
@@ -587,7 +599,6 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -627,7 +638,6 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = "remote-notification";
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (

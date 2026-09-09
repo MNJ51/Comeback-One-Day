@@ -174,6 +174,7 @@ struct AddMemoryView: View {
     @State private var geoPhotoItem: PhotosPickerItem?
     @State private var showingNoPhotoLocationAlert = false
     @State private var suggestedPlace: SuggestedPlace?
+    @State private var showingAdjustLocation = false
 
     /// A business found near a raw coordinate (e.g. from a photo's GPS EXIF),
     /// offered as a "is this it?" suggestion rather than filled in blindly.
@@ -183,6 +184,7 @@ struct AddMemoryView: View {
         let address: String?
         let website: String?
         let phoneNumber: String?
+        let mapKitCategory: MKPointOfInterestCategory?
     }
 
     private var canSave: Bool {
@@ -241,6 +243,10 @@ struct AddMemoryView: View {
             }
             .sheet(isPresented: $showingCamera) {
                 CameraView(image: $capturedImage)
+            }
+            .sheet(isPresented: $showingAdjustLocation) {
+                AdjustLocationView(initialCoordinate: selectedCoordinate, onConfirm: applyPinnedLocation)
+                    .environmentObject(locationManager)
             }
             .onChange(of: capturedImage) { _, newValue in
                 if let image = newValue, let data = image.jpegData(compressionQuality: 0.8) {
@@ -439,6 +445,12 @@ struct AddMemoryView: View {
             Label("Use a Photo's Location", systemImage: "location.viewfinder")
         }
 
+        Button {
+            showingAdjustLocation = true
+        } label: {
+            Label("Adjust on Map", systemImage: "mappin.and.ellipse")
+        }
+
         if locationManager.isDenied {
             Text("Location access is off. Enable it in Settings to use your current location.")
                 .font(.caption)
@@ -518,7 +530,8 @@ struct AddMemoryView: View {
                 coordinate: match.coordinate,
                 address: match.address,
                 website: match.website,
-                phoneNumber: match.phoneNumber
+                phoneNumber: match.phoneNumber,
+                mapKitCategory: match.mapKitCategory
             )
         }
     }
@@ -563,6 +576,27 @@ struct AddMemoryView: View {
         if phoneNumber.trimmingCharacters(in: .whitespaces).isEmpty, let resolvedPhone = place.phoneNumber {
             phoneNumber = resolvedPhone
         }
+        category = Category.from(mapKitCategory: place.mapKitCategory)
+    }
+
+    /// Unlike `select(_:)`/`applySuggestedPlace(_:)`, which only fill in
+    /// fields the user hasn't already typed something into — appropriate
+    /// for an *incidental* search or suggestion — a manually dropped pin is
+    /// a deliberate correction: the whole point is "what's in the form is
+    /// wrong, this pin is right," so every location-related field is
+    /// overwritten unconditionally. Notes, rating, visit status, date, and
+    /// photos are untouched — they aren't location fields.
+    private func applyPinnedLocation(_ place: PinnedLocation) {
+        selectedCoordinate = place.coordinate
+        recenterPreview(on: place.coordinate)
+        selectedPlaceLabel = place.name
+        selectedAddress = place.address
+        if let name = place.name {
+            self.name = name
+        }
+        website = place.website ?? ""
+        phoneNumber = place.phoneNumber ?? ""
+        category = place.category ?? .location
     }
 
     private struct PhotoGeoData {

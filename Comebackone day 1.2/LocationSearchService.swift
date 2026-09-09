@@ -58,7 +58,7 @@ class LocationSearchService: NSObject, ObservableObject {
     /// (e.g. one read from a photo's GPS EXIF) — a coordinate alone doesn't say
     /// whether it's a named place or just someone's backyard, so this is offered
     /// as a suggestion to confirm rather than filled in automatically.
-    static func nearestPlace(to coordinate: CLLocationCoordinate2D) async -> (name: String, coordinate: CLLocationCoordinate2D, address: String?, website: String?, phoneNumber: String?)? {
+    static func nearestPlace(to coordinate: CLLocationCoordinate2D) async -> (name: String, coordinate: CLLocationCoordinate2D, address: String?, website: String?, phoneNumber: String?, mapKitCategory: MKPointOfInterestCategory?)? {
         let request = MKLocalPointsOfInterestRequest(center: coordinate, radius: 75)
         let search = MKLocalSearch(request: request)
         guard let response = try? await search.start(), !response.mapItems.isEmpty else {
@@ -77,7 +77,8 @@ class LocationSearchService: NSObject, ObservableObject {
             closest.placemark.coordinate,
             formattedAddress(from: closest.placemark),
             closest.url?.absoluteString,
-            closest.phoneNumber
+            closest.phoneNumber,
+            closest.pointOfInterestCategory
         )
     }
 

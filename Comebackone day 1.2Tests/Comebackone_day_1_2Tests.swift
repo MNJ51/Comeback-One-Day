@@ -516,7 +516,7 @@ struct ItineraryPlannerTests {
         let origin = CLLocationCoordinate2D(latitude: -26.41, longitude: 153.09)
         let barePin = DiscoveredPlace(name: "Bare Pin", category: .location, coordinate: origin, address: nil, phoneNumber: nil, website: nil)
         let established = DiscoveredPlace(name: "Established Cafe", category: .cafe, coordinate: origin, address: nil, phoneNumber: "0712345678", website: "https://example.com")
-        let ranked = ItineraryPlanner.rank([barePin, established], from: origin)
+        let ranked = PointOfInterestSearch.rank([barePin, established], from: origin)
         #expect(ranked.first?.name == "Established Cafe")
     }
 
@@ -526,7 +526,7 @@ struct ItineraryPlannerTests {
         let far = CLLocationCoordinate2D(latitude: -26.50, longitude: 153.09)
         let nearPlace = DiscoveredPlace(name: "Near", category: .location, coordinate: near, address: nil, phoneNumber: nil, website: nil)
         let farPlace = DiscoveredPlace(name: "Far", category: .location, coordinate: far, address: nil, phoneNumber: nil, website: nil)
-        let ranked = ItineraryPlanner.rank([farPlace, nearPlace], from: origin)
+        let ranked = PointOfInterestSearch.rank([farPlace, nearPlace], from: origin)
         #expect(ranked.map(\.name) == ["Near", "Far"])
     }
 
@@ -590,14 +590,58 @@ struct ItineraryPlannerTests {
         // Real MapKit listings seen this session, complete with phone and
         // website (which is why `rank` trusted them), but tagged with a
         // category that plainly doesn't match the business itself.
-        #expect(ItineraryPlanner.nameSuggestsUnrelatedProfessionalService("IntExt Design"))
-        #expect(ItineraryPlanner.nameSuggestsUnrelatedProfessionalService("Sunshine Progressive Kinesiology and Meditation") == false)
+        #expect(PointOfInterestSearch.nameSuggestsUnrelatedProfessionalService("IntExt Design"))
+        #expect(PointOfInterestSearch.nameSuggestsUnrelatedProfessionalService("Sunshine Progressive Kinesiology and Meditation") == false)
 
         // Real adventure/food places should never be caught by this.
-        #expect(!ItineraryPlanner.nameSuggestsUnrelatedProfessionalService("Tanglewood Walk"))
-        #expect(!ItineraryPlanner.nameSuggestsUnrelatedProfessionalService("National Park Information Centre"))
-        #expect(!ItineraryPlanner.nameSuggestsUnrelatedProfessionalService("Go Ride A Wave"))
-        #expect(!ItineraryPlanner.nameSuggestsUnrelatedProfessionalService("Season Restaurant"))
+        #expect(!PointOfInterestSearch.nameSuggestsUnrelatedProfessionalService("Tanglewood Walk"))
+        #expect(!PointOfInterestSearch.nameSuggestsUnrelatedProfessionalService("National Park Information Centre"))
+        #expect(!PointOfInterestSearch.nameSuggestsUnrelatedProfessionalService("Go Ride A Wave"))
+        #expect(!PointOfInterestSearch.nameSuggestsUnrelatedProfessionalService("Season Restaurant"))
+    }
+}
+
+struct CuisineTests {
+    @Test func matchesObviousCuisineKeywordsInAName() {
+        #expect(Cuisine.thai.matches(name: "Thai Orchid"))
+        #expect(Cuisine.japanese.matches(name: "Sakura Sushi Bar"))
+        #expect(Cuisine.italian.matches(name: "Bella Pizzeria"))
+        #expect(Cuisine.vietnamese.matches(name: "Pho 88"))
+    }
+
+    @Test func doesNotMatchUnrelatedNames() {
+        #expect(!Cuisine.thai.matches(name: "The Local Diner"))
+        #expect(!Cuisine.japanese.matches(name: "Season Restaurant"))
+    }
+
+    /// A short cuisine keyword ("pho") must not false-match a totally
+    /// unrelated word that merely contains it as a substring.
+    @Test func shortKeywordsDoNotFalseMatchContainingWords() {
+        #expect(!Cuisine.vietnamese.matches(name: "iPhone Repair"))
+    }
+
+    /// Broader dish/regional-name coverage added after a real restaurant
+    /// ("Din Tai Fung") matched nothing under the old, thinner keyword
+    /// lists — these are names that gain a match specifically because of
+    /// that expansion, not names the old lists already caught.
+    @Test func matchesBroaderDishAndRegionalKeywords() {
+        #expect(Cuisine.chinese.matches(name: "Golden Wok"))
+        #expect(Cuisine.japanese.matches(name: "Tokyo Ramen House"))
+        #expect(Cuisine.indian.matches(name: "Mumbai Curry House"))
+        #expect(Cuisine.italian.matches(name: "Napoli Pizza Co"))
+        #expect(Cuisine.mexican.matches(name: "El Taco Loco"))
+        #expect(Cuisine.american.matches(name: "Route 66 Diner"))
+        #expect(Cuisine.mediterranean.matches(name: "Athens Greek Taverna"))
+        #expect(Cuisine.korean.matches(name: "Seoul Kitchen"))
+    }
+
+    /// "Din Tai Fung" is the real case that prompted the keyword expansion —
+    /// worth documenting explicitly that it still won't match anything,
+    /// since its name has zero cuisine or dish signal in it at all. No
+    /// amount of keyword-list broadening can fix this specific case; it's
+    /// the hard limit of a name-only heuristic, not a bug to chase further.
+    @Test func namesWithNoCuisineSignalStillMatchNothing() {
+        #expect(!Cuisine.chinese.matches(name: "Din Tai Fung"))
     }
 }
 

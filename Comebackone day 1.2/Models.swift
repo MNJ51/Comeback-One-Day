@@ -5,6 +5,7 @@
 
 import SwiftUI
 import CoreLocation
+import MapKit
 import UIKit
 
 enum Category: String, Codable, CaseIterable, Identifiable {
@@ -50,6 +51,73 @@ enum Category: String, Codable, CaseIterable, Identifiable {
     init(from decoder: Decoder) throws {
         let raw = try decoder.singleValueContainer().decode(String.self)
         self = Category(rawValue: raw) ?? .location
+    }
+}
+
+extension Category {
+    /// Best-effort mapping from MapKit's much larger category set onto this
+    /// app's own categories, for pin color/icon purposes only.
+    static func from(mapKitCategory: MKPointOfInterestCategory?) -> Category {
+        switch mapKitCategory {
+        case .restaurant: return .restaurant
+        case .cafe, .bakery: return .cafe
+        case .brewery, .winery, .nightlife, .distillery: return .bar
+        case .hotel: return .hotel
+        case .foodMarket: return .foodMarket
+        default: return .location
+        }
+    }
+}
+
+/// A restaurant's cuisine, for the Find screen's filter chips. MapKit exposes
+/// no cuisine field for arbitrary businesses, so this is inferred from the
+/// place's own name via the same keyword-matching heuristic
+/// `PointOfInterestSearch.nameSuggestsUnrelatedProfessionalService` uses
+/// elsewhere — matching *for* a cuisine here instead of *against* an
+/// unrelated business. A real but accepted limitation: a restaurant whose
+/// name doesn't mention its cuisine won't match any case.
+enum Cuisine: String, CaseIterable, Identifiable {
+    case thai = "Thai"
+    case chinese = "Chinese"
+    case japanese = "Japanese"
+    case indian = "Indian"
+    case italian = "Italian"
+    case mexican = "Mexican"
+    case american = "American"
+    case australian = "Australian"
+    case mediterranean = "Mediterranean"
+    case vietnamese = "Vietnamese"
+    case korean = "Korean"
+
+    var id: String { rawValue }
+
+    /// Kept deliberately distinctive where a short word risks a false match
+    /// against an unrelated business, e.g. bare "pho" would also match
+    /// "iPhone Repair" — but broader than a single word per cuisine, since a
+    /// too-narrow list is exactly the gap this heuristic keeps missing real
+    /// restaurants on (confirmed live: "Din Tai Fung" matched nothing under
+    /// the old, shorter Chinese list). Still fundamentally best-effort — a
+    /// restaurant whose name mentions neither its cuisine nor a dish from it
+    /// will never match any case here, no matter how long these lists get.
+    private var keywords: [String] {
+        switch self {
+        case .thai: return ["thai", "pad thai", "tom yum", "bangkok"]
+        case .chinese: return ["chinese", "cantonese", "szechuan", "szechwan", "sichuan", "hunan", "shanghai", "dim sum", "dumpling", "peking", "china", "noodle house", "wok"]
+        case .japanese: return ["japanese", "sushi", "ramen", "izakaya", "teppanyaki", "yakitori", "yakiniku", "udon", "donburi", "hibachi", "tokyo"]
+        case .indian: return ["indian", "tandoori", "punjabi", "biryani", "curry house", "curry", "masala", "naan", "dosa", "bombay", "mumbai", "delhi"]
+        case .italian: return ["italian", "pizzeria", "pizza", "trattoria", "osteria", "ristorante", "pasta", "sicilian", "napoli", "roma"]
+        case .mexican: return ["mexican", "taqueria", "cantina", "taco", "burrito", "enchilada", "agave"]
+        case .american: return ["american diner", "diner", "steakhouse", "smokehouse", "burger", "hot dog", "wings"]
+        case .australian: return ["australian", "aussie", "outback", "meat pie"]
+        case .mediterranean: return ["mediterranean", "greek taverna", "greek", "lebanese", "turkish kebab", "turkish", "kebab", "falafel", "shawarma", "hummus", "gyro", "mezze"]
+        case .vietnamese: return ["vietnamese", "pho ", "banh mi", "saigon"]
+        case .korean: return ["korean", "kimchi", "k-bbq", "korean bbq", "bibimbap", "seoul"]
+        }
+    }
+
+    func matches(name: String) -> Bool {
+        let lowered = name.lowercased()
+        return keywords.contains { lowered.contains($0) }
     }
 }
 

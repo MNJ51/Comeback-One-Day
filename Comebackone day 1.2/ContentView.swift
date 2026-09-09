@@ -155,6 +155,8 @@ struct BottomActionBar: View {
                 }
 
                 ItineraryButton()
+
+                FindButton()
             }
 
             HStack(spacing: 0) {

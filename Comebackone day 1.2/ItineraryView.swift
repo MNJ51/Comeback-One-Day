@@ -511,8 +511,10 @@ private struct ItineraryStopRow: View {
 
 /// Detail sheet for a place found via live search — not a saved TravelMemory,
 /// so this shows only what MapKit's listing provides, plus a way to actually
-/// save it into the user's own places.
-private struct DiscoveredPlaceDetailSheet: View {
+/// save it into the user's own places. Shared with the Find screen, not
+/// itinerary-specific — the "tap a live-searched place" moment is identical
+/// in both features.
+struct DiscoveredPlaceDetailSheet: View {
     let place: DiscoveredPlace
     let travelMode: ItineraryTravelMode
     @EnvironmentObject var store: MemoryStore
