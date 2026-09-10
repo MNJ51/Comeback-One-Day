@@ -951,3 +951,94 @@ struct JournalExporterTests {
         #expect(JournalExporter.markdown(for: []).isEmpty)
     }
 }
+
+struct EventCodingTests {
+    @Test func roundTripPreservesAllFields() throws {
+        let event = Event(
+            name: "Radiohead",
+            date: Date(timeIntervalSince1970: 900000000),
+            latitude: -27.4705,
+            longitude: 153.0260,
+            address: "Riverstage, Brisbane",
+            website: "https://radiohead.com",
+            photoFilenames: ["a.jpg"],
+            attended: true
+        )
+        let data = try JSONEncoder().encode(event)
+        let decoded = try JSONDecoder().decode(Event.self, from: data)
+        #expect(decoded == event)
+    }
+
+    @Test func attendedDefaultsToFalse() {
+        let event = Event(name: "Splendour in the Grass", date: Date(), latitude: -28.68, longitude: 153.6)
+        #expect(event.attended == false)
+    }
+
+    @Test func photoFilenamesDefaultsToEmpty() {
+        let event = Event(name: "A Concert", date: Date(), latitude: 0, longitude: 0)
+        #expect(event.photoFilenames.isEmpty)
+        #expect(event.coverPhotoFilename == nil)
+    }
+
+    /// Synthesized Codable uses `decodeIfPresent` for Optional stored
+    /// properties, so an old-shape JSON missing a key that was added later
+    /// (address/website here) still decodes cleanly rather than failing.
+    @Test func decodesJSONMissingOptionalKeys() throws {
+        let json = """
+        {
+            "id": "08D8A3C4-A65B-4119-876A-C7789A460D4F",
+            "name": "Coachella",
+            "date": 900000000,
+            "latitude": 33.6803,
+            "longitude": -116.2378,
+            "photoFilenames": [],
+            "attended": false,
+            "dateAdded": 900000000
+        }
+        """
+        let decoded = try JSONDecoder().decode(Event.self, from: Data(json.utf8))
+        #expect(decoded.address == nil)
+        #expect(decoded.website == nil)
+        #expect(decoded.name == "Coachella")
+    }
+
+    @Test func websiteURLAddsSchemeWhenMissing() {
+        let event = Event(name: "A Concert", date: Date(), latitude: 0, longitude: 0, website: "example.com")
+        #expect(event.websiteURL?.absoluteString == "https://example.com")
+    }
+}
+
+struct EventSortingTests {
+    private static func event(_ name: String, daysFromNow: Int, attended: Bool = false) -> Event {
+        let date = Calendar.current.date(byAdding: .day, value: daysFromNow, to: Date())!
+        return Event(name: name, date: date, latitude: 0, longitude: 0, attended: attended)
+    }
+
+    @Test func upcomingEventsSortAscendingBySoonestFirst() {
+        let events = [Self.event("Later", daysFromNow: 10), Self.event("Soonest", daysFromNow: 1), Self.event("Middle", daysFromNow: 5)]
+        let upcoming = events.filter { !$0.attended }.sorted { $0.date < $1.date }
+        #expect(upcoming.map(\.name) == ["Soonest", "Middle", "Later"])
+    }
+
+    @Test func attendedEventsSortDescendingByMostRecentFirst() {
+        let events = [
+            Self.event("Oldest", daysFromNow: -30, attended: true),
+            Self.event("Most Recent", daysFromNow: -1, attended: true),
+            Self.event("Middle", daysFromNow: -10, attended: true)
+        ]
+        let attended = events.filter(\.attended).sorted { $0.date > $1.date }
+        #expect(attended.map(\.name) == ["Most Recent", "Middle", "Oldest"])
+    }
+
+    @Test func attendedAndUpcomingEventsSplitIntoCorrectSections() {
+        let events = [
+            Self.event("Future Show", daysFromNow: 5),
+            Self.event("Past Show", daysFromNow: -5, attended: true),
+            Self.event("Another Future Show", daysFromNow: 2)
+        ]
+        let upcoming = events.filter { !$0.attended }
+        let attended = events.filter(\.attended)
+        #expect(upcoming.map(\.name).sorted() == ["Another Future Show", "Future Show"])
+        #expect(attended.map(\.name) == ["Past Show"])
+    }
+}

@@ -17,6 +17,7 @@ enum AppTab {
 struct ContentView: View {
     @StateObject private var store = MemoryStore()
     @StateObject private var journalStore = JournalStore()
+    @StateObject private var eventStore = EventStore()
     @StateObject private var locationManager = LocationManager()
     @StateObject private var subscriptionManager = SubscriptionManager()
     @StateObject private var adsManager = AdsManager()
@@ -79,6 +80,7 @@ struct ContentView: View {
         }
         .environmentObject(store)
         .environmentObject(journalStore)
+        .environmentObject(eventStore)
         .environmentObject(locationManager)
         .environmentObject(subscriptionManager)
         .environmentObject(adsManager)
@@ -89,6 +91,7 @@ struct ContentView: View {
                 Task {
                     await store.syncNow()
                     await journalStore.syncNow()
+                    await eventStore.syncNow()
                 }
             }
         }

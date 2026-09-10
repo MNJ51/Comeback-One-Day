@@ -8,7 +8,9 @@ import StoreKit
 
 struct MemoryListView: View {
     @EnvironmentObject var store: MemoryStore
+    @EnvironmentObject var eventStore: EventStore
     @State private var selectedMemory: TravelMemory?
+    @State private var showingEvents = false
     @State private var searchText = ""
     @State private var filterCategory: Category?
     @State private var filterCountry: String?
@@ -147,11 +149,22 @@ struct MemoryListView: View {
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingEvents = true
+                    } label: {
+                        Image(systemName: "ticket")
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
                     SettingsButton()
                 }
             }
             .sheet(item: $selectedMemory) { memory in
                 MemoryDetailView(memoryID: memory.id)
+            }
+            .sheet(isPresented: $showingEvents) {
+                EventListView()
+                    .environmentObject(eventStore)
             }
         }
     }
