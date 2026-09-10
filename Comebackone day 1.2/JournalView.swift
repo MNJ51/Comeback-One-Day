@@ -81,20 +81,24 @@ struct JournalListView: View {
     @EnvironmentObject var journalStore: JournalStore
     @EnvironmentObject var store: MemoryStore
     @EnvironmentObject var locationManager: LocationManager
+    @EnvironmentObject var journalAppearanceStore: JournalAppearanceStore
     @State private var showingAddEntry = false
     @State private var selectedEntry: JournalEntry?
     @State private var filterJournal: String?
     @State private var searchText = ""
     @State private var suggestedMemory: TravelMemory?
 
-    @State private var showingNewJournalAlert = false
-    @State private var newJournalName = ""
+    @State private var showingJournalAppearancePicker = false
     @State private var showingNewJournalEntry = false
     @State private var pendingNewJournalName = ""
 
     @State private var photoAuthStatus: PHAuthorizationStatus = PhotoLibraryMomentFinder.authorizationStatus
     @State private var moments: [PhotoMoment] = []
     @State private var selectedMomentPrefill: PrefilledMomentData?
+
+    @State private var currentReflectionPrompt = JournalReflectionPrompts.random()
+    @State private var selectedReflectionPrompt: ReflectionPromptSelection?
+    @AppStorage("journalMoodNudgeDismissed") private var moodNudgeDismissed = false
 
     private static let defaultJournalName = "Journal"
 
@@ -213,7 +217,8 @@ struct JournalListView: View {
                             Picker("Journal", selection: $filterJournal) {
                                 Text("All Journals").tag(String?.none)
                                 ForEach(availableJournals, id: \.self) { journal in
-                                    Text(journal).tag(String?.some(journal))
+                                    let appearance = journalAppearanceStore.appearance(for: journal)
+                                    Label(journal, systemImage: appearance.iconName).tag(String?.some(journal))
                                 }
                             }
                         } label: {
@@ -249,12 +254,14 @@ struct JournalListView: View {
                 JournalEntryFormSheet(entry: nil, prefilledMoment: moment)
                     .environmentObject(locationManager)
             }
-            .alert("New Journal", isPresented: $showingNewJournalAlert) {
-                TextField("Journal Name", text: $newJournalName)
-                Button("Cancel", role: .cancel) { newJournalName = "" }
-                Button("Create") {
-                    pendingNewJournalName = newJournalName
-                    newJournalName = ""
+            .sheet(item: $selectedReflectionPrompt) { selection in
+                JournalEntryFormSheet(entry: nil, prefilledPromptText: selection.prompt)
+                    .environmentObject(locationManager)
+            }
+            .sheet(isPresented: $showingJournalAppearancePicker) {
+                JournalAppearancePickerSheet { name, appearance in
+                    journalAppearanceStore.appearances[name] = appearance
+                    pendingNewJournalName = name
                     showingNewJournalEntry = true
                 }
             }
@@ -305,6 +312,12 @@ struct JournalListView: View {
 
             journalsSection
 
+            reflectionCard
+
+            if let entryMissingMood, !moodNudgeDismissed {
+                moodNudgeCard(for: entryMissingMood)
+            }
+
             if !suggestionCandidates.isEmpty {
                 smartSuggestionsRow
             }
@@ -316,6 +329,95 @@ struct JournalListView: View {
         .padding(.bottom, 4)
     }
 
+    /// The most recent entry with no mood tagged yet — the mood-nudge
+    /// card's target when tapped, and its own visibility condition.
+    private var entryMissingMood: JournalEntry? {
+        sortedEntries.first { $0.mood == nil }
+    }
+
+    /// A writing prompt, Apple Journal-style — shuffled locally (no
+    /// navigation) via JournalReflectionPrompts, or tapped to start a new
+    /// entry seeded with the current prompt via JournalEntryFormSheet's
+    /// `prefilledPromptText`.
+    private var reflectionCard: some View {
+        Button {
+            selectedReflectionPrompt = ReflectionPromptSelection(prompt: currentReflectionPrompt)
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                Text(currentReflectionPrompt)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Button {
+                    currentReflectionPrompt = JournalReflectionPrompts.random(excluding: currentReflectionPrompt)
+                } label: {
+                    Image(systemName: "shuffle")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(8)
+                        .background(.white.opacity(0.2), in: Circle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding()
+            .background(
+                LinearGradient(colors: [.orange, .pink], startPoint: .topLeading, endPoint: .bottomTrailing),
+                in: RoundedRectangle(cornerRadius: 16)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Styled after Apple Journal's "No Health Access" nudge card, but
+    /// points toward the app's own lightweight mood picker (JournalMood)
+    /// instead — this app deliberately doesn't integrate with HealthKit for
+    /// mood, so there's no Settings deep link, just a button into the most
+    /// recent entry still missing a tag.
+    private func moodNudgeCard(for entry: JournalEntry) -> some View {
+        VStack(spacing: 10) {
+            HStack {
+                Spacer()
+                Button {
+                    moodNudgeDismissed = true
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+            }
+
+            Text("🙂")
+                .font(.largeTitle)
+
+            Text("Tag How You Felt")
+                .font(.headline)
+
+            Text("Add a mood to your recent entries to see how you were feeling over time.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                selectedEntry = entry
+            } label: {
+                Text("Add Mood")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 10)
+                    .background(Color.accentColor, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 4)
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(Color.yellow.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
+    }
+
     private var journalsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -324,17 +426,21 @@ struct JournalListView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 Button {
-                    showingNewJournalAlert = true
+                    showingJournalAppearancePicker = true
                 } label: {
                     Image(systemName: "plus.circle.fill")
                 }
             }
 
             ForEach(journalBreakdown, id: \.name) { item in
+                let appearance = journalAppearanceStore.appearance(for: item.name)
                 Button {
                     filterJournal = item.name
                 } label: {
                     HStack {
+                        Image(systemName: appearance.iconName)
+                            .foregroundStyle(appearance.resolvedColor)
+                            .frame(width: 20)
                         Text(item.name)
                             .foregroundStyle(.primary)
                         Spacer()
@@ -520,6 +626,13 @@ struct JournalListView: View {
 /// loaded, ready to prefill a new entry — the load happens once, right after
 /// the user taps a moment card, since PHAsset -> Data conversion is async
 /// and JournalEntryFormSheet's init can't be.
+/// Wraps a chosen reflection prompt so it can drive a `.sheet(item:)` the
+/// same way `PrefilledMomentData` does for photo moments.
+struct ReflectionPromptSelection: Identifiable {
+    let id = UUID()
+    let prompt: String
+}
+
 struct PrefilledMomentData: Identifiable {
     let id = UUID()
     let date: Date
@@ -579,6 +692,7 @@ struct JournalEntryCard: View {
     let entry: JournalEntry
     let linkedMemory: TravelMemory?
     @EnvironmentObject var journalStore: JournalStore
+    @EnvironmentObject var journalAppearanceStore: JournalAppearanceStore
 
     private var heroImage: UIImage? {
         if let coverPhoto = entry.coverPhotoFilename {
@@ -675,12 +789,17 @@ struct JournalEntryCard: View {
                         }
 
                         if let journalName = entry.journalName {
-                            Text(journalName)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(.secondary.opacity(0.12), in: Capsule())
+                            let appearance = journalAppearanceStore.appearance(for: journalName)
+                            HStack(spacing: 4) {
+                                Image(systemName: appearance.iconName)
+                                    .font(.caption2)
+                                Text(journalName)
+                                    .font(.caption)
+                            }
+                            .foregroundStyle(appearance.resolvedColor)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(appearance.resolvedColor.opacity(0.12), in: Capsule())
                         }
                     }
                 }
@@ -829,6 +948,11 @@ struct JournalEntryFormSheet: View {
     @State private var showingPlacePicker = false
     @State private var isSaving = false
 
+    @State private var showingAudioSheet = false
+    @State private var showingSuggestionsSheet = false
+    @State private var composerPhotoAuthStatus: PHAuthorizationStatus = PhotoLibraryMomentFinder.authorizationStatus
+    @State private var composerMoments: [PhotoMoment] = []
+
     @State private var photos: [EditableEntryPhoto]
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var showingCamera = false
@@ -861,11 +985,20 @@ struct JournalEntryFormSheet: View {
     @State private var isCapturingContext = false
     private let suppressAutoContext: Bool
 
-    init(entry: JournalEntry?, prefilledMemoryID: UUID? = nil, prefilledJournalName: String? = nil, prefilledMoment: PrefilledMomentData? = nil) {
+    init(
+        entry: JournalEntry?,
+        prefilledMemoryID: UUID? = nil,
+        prefilledJournalName: String? = nil,
+        prefilledMoment: PrefilledMomentData? = nil,
+        prefilledPromptText: String? = nil
+    ) {
         self.entry = entry
         _date = State(initialValue: entry?.date ?? prefilledMoment?.date ?? Date())
         _title = State(initialValue: entry?.title ?? "")
-        _text = State(initialValue: entry?.text ?? "")
+        // Seeds the body with the prompt as a line to write beneath, not a
+        // separate field on JournalEntry — it's just ordinary entry text
+        // once written, avoiding a schema change for a one-time seed value.
+        _text = State(initialValue: entry?.text ?? prefilledPromptText.map { "\($0)\n\n" } ?? "")
         _linkedMemoryID = State(initialValue: entry?.linkedMemoryID ?? prefilledMemoryID)
         _journalName = State(initialValue: entry?.journalName ?? prefilledJournalName ?? "")
         let momentPhotos = prefilledMoment?.photoData.map { EditableEntryPhoto(filename: nil, data: $0) } ?? []
@@ -901,10 +1034,10 @@ struct JournalEntryFormSheet: View {
 
     var body: some View {
         NavigationStack {
-            formContent
-                .navigationTitle(entry == nil ? "New Entry" : "Edit Entry")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar { toolbarContent }
+            composerBody
+                .toolbar(.hidden, for: .navigationBar)
+                .safeAreaInset(edge: .top) { topFloatingControls }
+                .safeAreaInset(edge: .bottom) { bottomFloatingToolbar }
                 .sheet(isPresented: $showingPlacePicker) {
                     LinkedPlacePicker(selectedMemoryID: $linkedMemoryID)
                 }
@@ -917,6 +1050,12 @@ struct JournalEntryFormSheet: View {
                 .sheet(isPresented: $showingDrawingCanvas) {
                     drawingCanvasSheet
                 }
+                .sheet(isPresented: $showingAudioSheet) {
+                    AudioRecordingSheet(filename: $audioFilename, externallyOwnedFilename: entry?.audioFilename)
+                }
+                .sheet(isPresented: $showingSuggestionsSheet) {
+                    composerSuggestionsSheet
+                }
                 .onChange(of: capturedImage) { _, newValue in handleCapturedImage(newValue) }
                 .onChange(of: pickerItems) { _, newValue in handlePickedPhotoItems(newValue) }
                 .onChange(of: capturedVideoURL) { _, newValue in handleCapturedVideo(newValue) }
@@ -927,76 +1066,335 @@ struct JournalEntryFormSheet: View {
         }
     }
 
-    private var formContent: some View {
-        Form {
-            Section {
-                detailsSectionContent
-            } footer: {
+    /// Edge-to-edge composer body — title, mood, date, context, rich text,
+    /// and an inline attachment strip. Replaces the old Form/Section layout;
+    /// top padding clears the floating pill, bottom padding clears the
+    /// floating icon row.
+    private var composerBody: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                TextField("Title", text: $title)
+                    .font(.title2.weight(.semibold))
+
+                moodPicker
+
+                DatePicker("Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+
                 contextFooter
-            }
 
-            Section {
-                journalSectionContent
-            } header: {
-                Text("Journal")
-            } footer: {
-                Text("Groups entries into a named journal, e.g. \"Personal\" or \"Travel\". Leave blank for the default journal.")
-            }
+                RichTextEditor(text: $text, placeholder: "Start writing…", pendingWrap: $pendingWrap)
+                    .frame(minHeight: 220)
 
-            Section("Photos") {
-                photosSectionContent
+                attachmentsStrip
             }
+            .padding()
+            .padding(.top, 60)
+            .padding(.bottom, 76)
+        }
+        .background(Color(.systemBackground))
+    }
 
-            Section("Audio") {
-                VoiceNoteControl(filename: $audioFilename, externallyOwnedFilename: entry?.audioFilename)
-            }
-
-            Section("Sketch") {
-                sketchSectionContent
-            }
-
-            Section {
-                placeSectionContent
-            } footer: {
-                Text("Optionally link this entry to one of your saved places.")
-            }
-
-            if entry != nil {
-                Section {
-                    Button("Delete Entry", role: .destructive) {
-                        if let entry {
-                            journalStore.delete(entry)
-                        }
-                        dismiss()
+    @ViewBuilder
+    private var attachmentsStrip: some View {
+        if !photos.isEmpty || !videos.isEmpty || drawingThumbnail != nil {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(photos) { photo in photoThumbnail(for: photo) }
+                    ForEach(videos) { video in videoThumbnail(for: video) }
+                    if let drawingThumbnail {
+                        sketchThumbnail(drawingThumbnail)
                     }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func sketchThumbnail(_ image: UIImage) -> some View {
+        Button {
+            showingDrawingCanvas = true
+        } label: {
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+        }
+        .buttonStyle(.plain)
+        .frame(width: 80, height: 80)
+        .background(Color.secondary.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .overlay(alignment: .topTrailing) {
+            Button(action: removeSketch) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.white, .black.opacity(0.6))
+            }
+            .padding(4)
+        }
+    }
+
+    private func removeSketch() {
+        if let drawingFilename, drawingFilename != entry?.drawingFilename {
+            DrawingStore.delete(drawingFilename)
+        }
+        drawing = PKDrawing()
+        drawingFilename = nil
+    }
+
+    /// Circular back button, a center pill (Aa formatting / sketch / •••
+    /// overflow), and a circular checkmark Save — floats over the content
+    /// the same way BottomActionBar floats over ContentView's tabs.
+    private var topFloatingControls: some View {
+        HStack {
+            Button(action: cancelAndDismiss) {
+                Image(systemName: "chevron.left")
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .frame(width: 44, height: 44)
+                    .background(.thickMaterial, in: Circle())
+            }
+
+            Spacer()
+
+            HStack(spacing: 2) {
+                Menu {
+                    Button { pendingWrap = .bold } label: { Label("Bold", systemImage: "bold") }
+                    Button { pendingWrap = .italic } label: { Label("Italic", systemImage: "italic") }
+                    Button { pendingWrap = .bullet } label: { Label("Bullet List", systemImage: "list.bullet") }
+                } label: {
+                    Text("Aa").font(.headline).frame(width: 44, height: 36)
+                }
+
+                Button {
+                    showingDrawingCanvas = true
+                } label: {
+                    Image(systemName: "pencil.circle").font(.title3).frame(width: 44, height: 36)
+                }
+
+                moreMenu
+            }
+            .foregroundStyle(.primary)
+            .background(.thickMaterial, in: Capsule())
+
+            Spacer()
+
+            Button {
+                Task { await save() }
+            } label: {
+                Image(systemName: "checkmark")
+                    .font(.headline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(
+                        (canSave && !isSaving) ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(Color.gray.opacity(0.4)),
+                        in: Circle()
+                    )
+            }
+            .disabled(!canSave || isSaving)
+        }
+        .padding(.horizontal)
+        .padding(.top, 8)
+    }
+
+    /// Journal picker (existing journals only — creating a brand-new named
+    /// journal now happens via the dedicated color/icon picker sheet on the
+    /// Journal home screen, not by free-typing a name here), the linked-place
+    /// picker, and Delete when editing — consolidates what used to be three
+    /// separate Form sections.
+    private var moreMenu: some View {
+        Menu {
+            journalPickerMenuButton
+            Button {
+                showingPlacePicker = true
+            } label: {
+                Label(linkedMemory?.name ?? "Link a Place", systemImage: "mappin.circle")
+            }
+            if linkedMemory != nil {
+                Button("Remove Place Link", role: .destructive) { linkedMemoryID = nil }
+            }
+            if entry != nil {
+                Divider()
+                Button("Delete Entry", role: .destructive, action: deleteEntryAndDismiss)
+            }
+        } label: {
+            Image(systemName: "ellipsis").font(.headline).frame(width: 44, height: 36)
+        }
+    }
+
+    private var journalPickerMenuButton: some View {
+        Menu {
+            Button {
+                journalName = ""
+            } label: {
+                if journalName.trimmedNonEmpty == nil {
+                    Label("Default Journal", systemImage: "checkmark")
+                } else {
+                    Text("Default Journal")
+                }
+            }
+            ForEach(availableJournals, id: \.self) { name in
+                Button {
+                    journalName = name
+                } label: {
+                    if journalName == name {
+                        Label(name, systemImage: "checkmark")
+                    } else {
+                        Text(name)
+                    }
+                }
+            }
+        } label: {
+            Label(journalName.trimmedNonEmpty ?? "Default Journal", systemImage: "book.closed")
+        }
+    }
+
+    private func cancelAndDismiss() {
+        // Nothing has been saved yet, so a newly recorded/replaced voice
+        // note or sketch that isn't the entry's original is an orphan —
+        // both are written to disk immediately, unlike photos, which stay
+        // as in-memory Data until Save.
+        if audioFilename != entry?.audioFilename, let audioFilename {
+            VoiceNoteStore.delete(audioFilename)
+        }
+        if drawingFilename != entry?.drawingFilename, let drawingFilename {
+            DrawingStore.delete(drawingFilename)
+        }
+        dismiss()
+    }
+
+    private func deleteEntryAndDismiss() {
+        if let entry {
+            journalStore.delete(entry)
+        }
+        dismiss()
+    }
+
+    /// Six icons, floating above the keyboard the same way `BottomActionBar`
+    /// floats over ContentView's tabs. Sparkles and the branch icon stand in
+    /// for Apple Journal's AI-rewrite and Journaling-Suggestions icons —
+    /// this app has neither, so they're mapped to real, already-built
+    /// features instead (see JournalModels.swift's JournalReflectionPrompts
+    /// and the moments-loading below).
+    private var bottomFloatingToolbar: some View {
+        HStack(spacing: 0) {
+            toolbarIconButton(systemName: "sparkles") {
+                text += (text.isEmpty ? "" : "\n\n") + JournalReflectionPrompts.random()
+            }
+
+            PhotosPicker(selection: $pickerItems, maxSelectionCount: 10, matching: .images) {
+                toolbarIcon("photo.on.rectangle.angled")
+            }
+
+            if CameraView.isAvailable {
+                toolbarIconButton(systemName: "camera.fill") { showingCamera = true }
+            }
+
+            Menu {
+                PhotosPicker(selection: $videoPickerItems, maxSelectionCount: 5, matching: .videos) {
+                    Label("Choose Video", systemImage: "photo.on.rectangle")
+                }
+                if VideoCameraView.isAvailable {
+                    Button { showingVideoCamera = true } label: { Label("Record Video", systemImage: "video.fill") }
+                }
+            } label: {
+                toolbarIcon("video.badge.plus")
+            }
+
+            toolbarIconButton(systemName: "waveform") { showingAudioSheet = true }
+
+            toolbarIconButton(systemName: "arrow.triangle.branch") {
+                Task { await loadComposerMomentsIfNeeded() }
+                showingSuggestionsSheet = true
+            }
+        }
+        .padding(.vertical, 10)
+        .background(.ultraThickMaterial, in: RoundedRectangle(cornerRadius: 26))
+        .shadow(radius: 4)
+        .padding(.horizontal)
+        .padding(.bottom, 6)
+    }
+
+    private func toolbarIcon(_ systemName: String) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: 18))
+            .foregroundStyle(.primary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+    }
+
+    private func toolbarIconButton(systemName: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            toolbarIcon(systemName)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// In-composer suggestions, reusing the same PhotoLibraryMomentFinder
+    /// moments the Journal home screen surfaces (JournalListView.loadMoments)
+    /// — but tapping one here only appends its photos to the entry already
+    /// in progress, never touching date/location the way the home-screen
+    /// flow does when seeding a brand-new entry.
+    private var composerSuggestionsSheet: some View {
+        NavigationStack {
+            Group {
+                if composerPhotoAuthStatus == .notDetermined {
+                    Button("See Suggested Moments From Your Photos") {
+                        Task { await requestComposerPhotoAccess() }
+                    }
+                    .padding()
+                } else if composerMoments.isEmpty {
+                    ContentUnavailableView(
+                        "No Suggestions",
+                        systemImage: "photo.stack",
+                        description: Text("No recent photo moments to suggest.")
+                    )
+                } else {
+                    ScrollView {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 10)], spacing: 10) {
+                            ForEach(composerMoments) { moment in
+                                Button {
+                                    Task { await appendMoment(moment) }
+                                } label: {
+                                    MomentCard(moment: moment)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding()
+                    }
+                }
+            }
+            .navigationTitle("Suggestions")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") { showingSuggestionsSheet = false }
                 }
             }
         }
     }
 
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .cancellationAction) {
-            Button("Cancel") {
-                // Nothing has been saved yet, so a newly recorded/replaced
-                // voice note or sketch that isn't the entry's original is an
-                // orphan — both are written to disk immediately, unlike
-                // photos, which stay as in-memory Data until Save.
-                if audioFilename != entry?.audioFilename, let audioFilename {
-                    VoiceNoteStore.delete(audioFilename)
-                }
-                if drawingFilename != entry?.drawingFilename, let drawingFilename {
-                    DrawingStore.delete(drawingFilename)
-                }
-                dismiss()
-            }
+    private func requestComposerPhotoAccess() async {
+        composerPhotoAuthStatus = await PhotoLibraryMomentFinder.requestAuthorization()
+        if composerPhotoAuthStatus == .authorized || composerPhotoAuthStatus == .limited {
+            await loadComposerMomentsIfNeeded()
         }
-        ToolbarItem(placement: .confirmationAction) {
-            Button("Save") {
-                Task { await save() }
-            }
-            .disabled(!canSave || isSaving)
+    }
+
+    private func loadComposerMomentsIfNeeded() async {
+        guard composerPhotoAuthStatus == .authorized || composerPhotoAuthStatus == .limited else { return }
+        let alreadyJournaled = Set(journalStore.entries.compactMap(\.sourceAssetIdentifiers).flatMap { $0 })
+        composerMoments = await PhotoLibraryMomentFinder.findMoments(excludingAssetIdentifiers: alreadyJournaled)
+    }
+
+    private func appendMoment(_ moment: PhotoMoment) async {
+        let photoData = await PhotoLibraryMomentFinder.loadImageData(for: moment.assetIdentifiers)
+        for data in photoData {
+            photos.append(EditableEntryPhoto(filename: nil, data: data))
         }
+        showingSuggestionsSheet = false
     }
 
     private func handleCapturedImage(_ newValue: UIImage?) {
@@ -1032,65 +1430,6 @@ struct JournalEntryFormSheet: View {
                 }
             }
             videoPickerItems = []
-        }
-    }
-
-    @ViewBuilder
-    private var detailsSectionContent: some View {
-        TextField("Title (optional)", text: $title)
-            .font(.headline)
-        DatePicker("Date", selection: $date, displayedComponents: [.date, .hourAndMinute])
-        moodPicker
-        formattingToolbar
-        RichTextEditor(text: $text, placeholder: "What happened today?", pendingWrap: $pendingWrap)
-            .frame(minHeight: 160)
-    }
-
-    /// Wraps the current text-editor selection in Markdown syntax, rendered
-    /// wherever an entry's body is displayed via `Text(LocalizedStringKey:)`.
-    private var formattingToolbar: some View {
-        HStack(spacing: 20) {
-            Button { pendingWrap = .bold } label: {
-                Image(systemName: "bold")
-            }
-            Button { pendingWrap = .italic } label: {
-                Image(systemName: "italic")
-            }
-            Button { pendingWrap = .bullet } label: {
-                Image(systemName: "list.bullet")
-            }
-            Spacer()
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(.secondary)
-    }
-
-    @ViewBuilder
-    private var sketchSectionContent: some View {
-        if let drawingThumbnail {
-            Button {
-                showingDrawingCanvas = true
-            } label: {
-                Image(uiImage: drawingThumbnail)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxHeight: 120)
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.plain)
-            Button("Remove Sketch", role: .destructive) {
-                if let drawingFilename, drawingFilename != entry?.drawingFilename {
-                    DrawingStore.delete(drawingFilename)
-                }
-                drawing = PKDrawing()
-                drawingFilename = nil
-            }
-        } else {
-            Button {
-                showingDrawingCanvas = true
-            } label: {
-                Label("Add a Sketch", systemImage: "pencil.tip")
-            }
         }
     }
 
@@ -1175,93 +1514,6 @@ struct JournalEntryFormSheet: View {
             return description + temperaturePart
         }
         return [locationLabel, weatherPart].compactMap { $0 }.joined(separator: " · ")
-    }
-
-    @ViewBuilder
-    private var journalSectionContent: some View {
-        TextField("Journal name (optional)", text: $journalName)
-        if !availableJournals.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(availableJournals, id: \.self) { name in
-                        Button(name) { journalName = name }
-                            .font(.caption)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(.blue.opacity(0.12), in: Capsule())
-                            .foregroundStyle(.blue)
-                    }
-                }
-            }
-            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
-        }
-    }
-
-    @ViewBuilder
-    private var photosSectionContent: some View {
-        if !photos.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(photos) { photo in
-                        photoThumbnail(for: photo)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-        }
-
-        PhotosPicker(selection: $pickerItems, maxSelectionCount: 10, matching: .images) {
-            Label("Add Photos", systemImage: "photo.on.rectangle.angled")
-        }
-
-        if CameraView.isAvailable {
-            Button(action: { showingCamera = true }) {
-                Label("Take Photo", systemImage: "camera.fill")
-            }
-        }
-
-        if !videos.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(videos) { video in
-                        videoThumbnail(for: video)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-        }
-
-        PhotosPicker(selection: $videoPickerItems, maxSelectionCount: 5, matching: .videos) {
-            Label("Add Video", systemImage: "video.badge.plus")
-        }
-
-        if VideoCameraView.isAvailable {
-            Button(action: { showingVideoCamera = true }) {
-                Label("Take Video", systemImage: "video.fill")
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var placeSectionContent: some View {
-        Button {
-            showingPlacePicker = true
-        } label: {
-            HStack {
-                Label(linkedMemory?.name ?? "Link a Place", systemImage: "mappin.circle")
-                Spacer()
-                if linkedMemory != nil {
-                    Text("Change")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        if linkedMemory != nil {
-            Button("Remove Link", role: .destructive) {
-                linkedMemoryID = nil
-            }
-        }
     }
 
     @ViewBuilder

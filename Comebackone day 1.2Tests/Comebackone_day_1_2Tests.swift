@@ -8,6 +8,7 @@
 import CoreLocation
 import Foundation
 import MapKit
+import SwiftUI
 import Testing
 @testable import Comebackone_day_1_2
 
@@ -642,6 +643,54 @@ struct CuisineTests {
     /// the hard limit of a name-only heuristic, not a bug to chase further.
     @Test func namesWithNoCuisineSignalStillMatchNothing() {
         #expect(!Cuisine.chinese.matches(name: "Din Tai Fung"))
+    }
+}
+
+struct JournalAppearanceTests {
+    @Test func roundTripPreservesColorAndIcon() throws {
+        let appearance = JournalAppearance(color: .coral, iconName: "airplane")
+        let data = try JSONEncoder().encode(appearance)
+        let decoded = try JSONDecoder().decode(JournalAppearance.self, from: data)
+        #expect(decoded == appearance)
+    }
+
+    @Test func customColorHexRoundTrips() throws {
+        let appearance = JournalAppearance(color: .plum, customColorHex: "#3399FF", iconName: "star.fill")
+        let data = try JSONEncoder().encode(appearance)
+        let decoded = try JSONDecoder().decode(JournalAppearance.self, from: data)
+        #expect(decoded == appearance)
+        #expect(decoded.resolvedColor != appearance.color.color)
+    }
+
+    @Test func storeReturnsDefaultForUnknownJournalName() {
+        let store = JournalAppearanceStore()
+        #expect(store.appearance(for: "Some journal that was never customized") == JournalAppearance.default)
+    }
+
+    @Test func hexColorParsingRoundTrips() {
+        let color = Color(red: 0.2, green: 0.4, blue: 0.6)
+        let hex = color.hexString
+        let parsed = Color(hex: hex)
+        #expect(parsed != nil)
+        #expect(parsed?.hexString == hex)
+    }
+
+    @Test func malformedHexFailsToParse() {
+        #expect(Color(hex: "not-a-color") == nil)
+    }
+}
+
+struct JournalReflectionPromptsTests {
+    @Test func randomAlwaysReturnsAKnownPrompt() {
+        let prompt = JournalReflectionPrompts.random()
+        #expect(JournalReflectionPrompts.all.contains(prompt))
+    }
+
+    @Test func randomExcludingNeverReturnsTheExcludedPrompt() {
+        let current = JournalReflectionPrompts.all[0]
+        for _ in 0..<20 {
+            #expect(JournalReflectionPrompts.random(excluding: current) != current)
+        }
     }
 }
 

@@ -11,6 +11,7 @@ import SwiftUI
 
 struct JournalInsightsView: View {
     @EnvironmentObject var journalStore: JournalStore
+    @EnvironmentObject var journalAppearanceStore: JournalAppearanceStore
     @AppStorage("journalStreakIsWeekly") private var streakIsWeekly = false
 
     private var entries: [JournalEntry] {
@@ -103,7 +104,16 @@ struct JournalInsightsView: View {
             if journalBreakdown.count > 1 {
                 Section("Journals") {
                     ForEach(journalBreakdown, id: \.name) { item in
-                        statRow(label: item.name, value: "\(item.count)")
+                        let appearance = journalAppearanceStore.appearance(for: item.name)
+                        HStack {
+                            Image(systemName: appearance.iconName)
+                                .foregroundStyle(appearance.resolvedColor)
+                                .frame(width: 20)
+                            Text(item.name)
+                            Spacer()
+                            Text("\(item.count)")
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }

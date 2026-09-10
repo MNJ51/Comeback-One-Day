@@ -116,6 +116,42 @@ struct JournalEntry: Identifiable, Codable, Equatable {
     }
 }
 
+/// Curated writing prompts for the Journal home screen's Reflection card —
+/// Apple Journal-style ("what made you smile today?"), shuffled on demand.
+/// Pure static content, no persisted state — same shape as JournalStreak.
+enum JournalReflectionPrompts {
+    static let all: [String] = [
+        "What's one small moment from today you don't want to forget?",
+        "Describe a taste, smell, or sound that stood out today.",
+        "What made you smile today?",
+        "If you could relive one hour from today, which would it be?",
+        "What's something new you tried or learned today?",
+        "Who did you spend time with today, and what will you remember about it?",
+        "What place felt most like \"you\" today?",
+        "What are you looking forward to next?",
+        "Describe today's weather and how it made you feel.",
+        "What's a small thing you're grateful for right now?",
+        "What's a conversation from today worth remembering?",
+        "What surprised you today?",
+        "What's a photo you took today that you'd want to show someone in ten years?",
+        "What did today teach you about a place you visited?",
+        "What's something you'd tell your past self about today?",
+        "What's one thing you'd do differently if you had the day again?",
+        "What's a detail about today most people would miss?",
+        "How did today compare to what you expected?",
+        "What's a small win from today, however minor?",
+        "What question are you sitting with tonight?"
+    ]
+
+    /// A random prompt, optionally avoiding the one currently shown so the
+    /// shuffle button always visibly changes something (falls back to
+    /// allowing a repeat if `all` only has one entry).
+    static func random(excluding current: String? = nil) -> String {
+        let candidates = all.count > 1 ? all.filter { $0 != current } : all
+        return candidates.randomElement() ?? all[0]
+    }
+}
+
 /// A simple in-app mood tag for a journal entry. Deliberately its own small
 /// enum rather than a repurposing of the app's `Category` type (Models.swift)
 /// — `Category` is a place-type taxonomy (restaurant/cafe/hotel/...) for pins
