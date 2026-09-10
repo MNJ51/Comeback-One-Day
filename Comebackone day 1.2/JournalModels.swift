@@ -50,6 +50,13 @@ struct JournalEntry: Identifiable, Codable, Equatable {
     /// individual samples to it), just a lightweight per-entry feeling tag.
     /// Optional for the same Codable-safety reason as `audioFilename`.
     var mood: JournalMood?
+    /// Marks an entry as bookmarked, Apple Journal-style. Optional for the
+    /// same Codable-safety reason as `audioFilename`/`mood` — a non-Optional
+    /// stored property still requires its key to be present even with a
+    /// default value (synthesized Decodable only skips missing keys for
+    /// Optional properties), so `Bool = false` here would fail to decode
+    /// entries written before this field existed. `nil` means not bookmarked.
+    var isBookmarked: Bool?
     /// A PencilKit sketch attached to the entry, stored the same
     /// filename-on-disk way as photos/audio (see DrawingStore). Optional for
     /// the same Codable-safety reason as `audioFilename`/`mood`.
@@ -80,6 +87,7 @@ struct JournalEntry: Identifiable, Codable, Equatable {
         dateAdded: Date = Date(),
         audioFilename: String? = nil,
         mood: JournalMood? = nil,
+        isBookmarked: Bool? = nil,
         drawingFilename: String? = nil,
         sourceAssetIdentifiers: [String]? = nil
     ) {
@@ -100,6 +108,7 @@ struct JournalEntry: Identifiable, Codable, Equatable {
         self.dateAdded = dateAdded
         self.audioFilename = audioFilename
         self.mood = mood
+        self.isBookmarked = isBookmarked
         self.drawingFilename = drawingFilename
         self.sourceAssetIdentifiers = sourceAssetIdentifiers
     }

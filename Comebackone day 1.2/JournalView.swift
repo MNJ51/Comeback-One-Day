@@ -85,12 +85,14 @@ struct JournalListView: View {
     @State private var showingAddEntry = false
     @State private var selectedEntry: JournalEntry?
     @State private var filterJournal: String?
+    @State private var bookmarkedOnly = false
     @State private var searchText = ""
     @State private var suggestedMemory: TravelMemory?
 
     @State private var showingJournalAppearancePicker = false
     @State private var showingNewJournalEntry = false
     @State private var pendingNewJournalName = ""
+    @State private var editingJournalName: String?
 
     @State private var photoAuthStatus: PHAuthorizationStatus = PhotoLibraryMomentFinder.authorizationStatus
     @State private var moments: [PhotoMoment] = []
@@ -147,6 +149,10 @@ struct JournalListView: View {
         var result = sortedEntries
         if let filterJournal {
             result = result.filter { ($0.journalName ?? Self.defaultJournalName) == filterJournal }
+        }
+
+        if bookmarkedOnly {
+            result = result.filter { $0.isBookmarked == true }
         }
 
         let query = searchText.trimmingCharacters(in: .whitespaces)
@@ -211,9 +217,9 @@ struct JournalListView: View {
             .navigationTitle("Journal")
             .searchable(text: $searchText, prompt: "Search entries")
             .toolbar {
-                if availableJournals.count > 1 {
-                    ToolbarItem(placement: .primaryAction) {
-                        Menu {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        if availableJournals.count > 1 {
                             Picker("Journal", selection: $filterJournal) {
                                 Text("All Journals").tag(String?.none)
                                 ForEach(availableJournals, id: \.self) { journal in
@@ -221,9 +227,12 @@ struct JournalListView: View {
                                     Label(journal, systemImage: appearance.iconName).tag(String?.some(journal))
                                 }
                             }
-                        } label: {
-                            Image(systemName: filterJournal == nil ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
                         }
+                        Toggle(isOn: $bookmarkedOnly) {
+                            Label("Bookmarked Only", systemImage: "bookmark")
+                        }
+                    } label: {
+                        Image(systemName: (filterJournal == nil && !bookmarkedOnly) ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
@@ -260,9 +269,20 @@ struct JournalListView: View {
             }
             .sheet(isPresented: $showingJournalAppearancePicker) {
                 JournalAppearancePickerSheet { name, appearance in
-                    journalAppearanceStore.appearances[name] = appearance
+                    saveJournalAppearance(oldName: nil, newName: name, appearance: appearance)
                     pendingNewJournalName = name
                     showingNewJournalEntry = true
+                }
+            }
+            .sheet(item: Binding(
+                get: { editingJournalName.map { IdentifiableString(value: $0) } },
+                set: { editingJournalName = $0?.value }
+            )) { wrapped in
+                JournalAppearancePickerSheet(
+                    existingName: wrapped.value,
+                    existingAppearance: journalAppearanceStore.appearance(for: wrapped.value)
+                ) { name, appearance in
+                    saveJournalAppearance(oldName: wrapped.value, newName: name, appearance: appearance)
                 }
             }
             .task {
@@ -455,8 +475,32 @@ struct JournalListView: View {
                     .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
+                .contextMenu {
+                    Button {
+                        editingJournalName = item.name
+                    } label: {
+                        Label("Edit Appearance", systemImage: "paintpalette")
+                    }
+                }
             }
         }
+    }
+
+    /// Renames every entry in `oldName` to `newName` (if it actually
+    /// changed) and moves the appearance record to match — a plain rename
+    /// onto an already-existing different journal name is allowed; entries
+    /// simply merge into it, the same as renaming a folder onto another.
+    private func saveJournalAppearance(oldName: String?, newName: String, appearance: JournalAppearance) {
+        if let oldName, oldName != newName {
+            for entry in journalStore.entries where entry.journalName == oldName {
+                var updated = entry
+                updated.journalName = newName
+                journalStore.update(updated)
+            }
+            journalAppearanceStore.appearances[oldName] = nil
+            if filterJournal == oldName { filterJournal = newName }
+        }
+        journalAppearanceStore.appearances[newName] = appearance
     }
 
     /// Recent same-day, nearby-location photo clusters from the user's
@@ -622,10 +666,6 @@ struct JournalListView: View {
     }
 }
 
-/// A suggested photo moment with its full-resolution image data already
-/// loaded, ready to prefill a new entry — the load happens once, right after
-/// the user taps a moment card, since PHAsset -> Data conversion is async
-/// and JournalEntryFormSheet's init can't be.
 /// Wraps a chosen reflection prompt so it can drive a `.sheet(item:)` the
 /// same way `PrefilledMomentData` does for photo moments.
 struct ReflectionPromptSelection: Identifiable {
@@ -633,6 +673,18 @@ struct ReflectionPromptSelection: Identifiable {
     let prompt: String
 }
 
+/// Wraps a plain `String` so an optional journal name can drive a
+/// `.sheet(item:)` — used for the edit-appearance flow, where `nil` means
+/// no sheet and a non-nil value is the journal name being edited.
+struct IdentifiableString: Identifiable {
+    let id = UUID()
+    let value: String
+}
+
+/// A suggested photo moment with its full-resolution image data already
+/// loaded, ready to prefill a new entry — the load happens once, right after
+/// the user taps a moment card, since PHAsset -> Data conversion is async
+/// and JournalEntryFormSheet's init can't be.
 struct PrefilledMomentData: Identifiable {
     let id = UUID()
     let date: Date
@@ -754,6 +806,10 @@ struct JournalEntryCard: View {
                     Text(entry.date, style: .date)
                     if let mood = entry.mood {
                         Text(mood.emoji)
+                    }
+                    if entry.isBookmarked == true {
+                        Image(systemName: "bookmark.fill")
+                            .foregroundStyle(.orange)
                     }
                     if isSyncPending {
                         Image(systemName: "icloud.and.arrow.up")
@@ -965,6 +1021,8 @@ struct JournalEntryFormSheet: View {
 
     @State private var audioFilename: String?
     @State private var mood: JournalMood?
+    @State private var isBookmarked: Bool
+    @State private var presentFind = false
 
     @State private var drawing: PKDrawing
     @State private var drawingFilename: String?
@@ -1006,6 +1064,7 @@ struct JournalEntryFormSheet: View {
         _videos = State(initialValue: entry?.videoFilenames.map { EditableEntryVideo(filename: $0, temporaryURL: nil) } ?? [])
         _audioFilename = State(initialValue: entry?.audioFilename)
         _mood = State(initialValue: entry?.mood)
+        _isBookmarked = State(initialValue: entry?.isBookmarked ?? false)
         _drawing = State(initialValue: DrawingStore.drawing(for: entry?.drawingFilename) ?? PKDrawing())
         _drawingFilename = State(initialValue: entry?.drawingFilename)
         sourceAssetIdentifiers = entry?.sourceAssetIdentifiers ?? prefilledMoment?.sourceAssetIdentifiers
@@ -1084,7 +1143,7 @@ struct JournalEntryFormSheet: View {
 
                 contextFooter
 
-                RichTextEditor(text: $text, placeholder: "Start writing…", pendingWrap: $pendingWrap)
+                RichTextEditor(text: $text, placeholder: "Start writing…", pendingWrap: $pendingWrap, presentFind: $presentFind)
                     .frame(minHeight: 220)
 
                 attachmentsStrip
@@ -1213,6 +1272,23 @@ struct JournalEntryFormSheet: View {
             }
             if linkedMemory != nil {
                 Button("Remove Place Link", role: .destructive) { linkedMemoryID = nil }
+            }
+            Divider()
+            if title.trimmedNonEmpty != nil {
+                Button("Remove Title", role: .destructive) { title = "" }
+            }
+            Button {
+                isBookmarked.toggle()
+            } label: {
+                Label(
+                    isBookmarked ? "Remove Bookmark" : "Add Bookmark",
+                    systemImage: isBookmarked ? "bookmark.slash" : "bookmark"
+                )
+            }
+            Button {
+                presentFind = true
+            } label: {
+                Label("Find in Entry", systemImage: "magnifyingglass")
             }
             if entry != nil {
                 Divider()
@@ -1628,6 +1704,7 @@ struct JournalEntryFormSheet: View {
             updated.journalName = trimmedJournalName
             updated.audioFilename = audioFilename
             updated.mood = mood
+            updated.isBookmarked = isBookmarked
             updated.drawingFilename = drawingFilename
             updated.sourceAssetIdentifiers = sourceAssetIdentifiers
             journalStore.update(updated)
@@ -1648,6 +1725,7 @@ struct JournalEntryFormSheet: View {
                 weatherDescription: weatherDescription,
                 audioFilename: audioFilename,
                 mood: mood,
+                isBookmarked: isBookmarked,
                 drawingFilename: drawingFilename,
                 sourceAssetIdentifiers: sourceAssetIdentifiers
             ))

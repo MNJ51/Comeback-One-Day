@@ -19,6 +19,8 @@ struct RichTextEditor: UIViewRepresentable {
     /// Set by the toolbar to request wrapping the current selection (or, if
     /// nothing is selected, inserting at the cursor) in Markdown syntax.
     @Binding var pendingWrap: RichTextWrap?
+    /// Set by the "Find in Entry" menu item to present the system find bar.
+    @Binding var presentFind: Bool
 
     func makeUIView(context: Context) -> UITextView {
         let textView = UITextView()
@@ -30,6 +32,7 @@ struct RichTextEditor: UIViewRepresentable {
         textView.textContainer.lineFragmentPadding = 0
         textView.delegate = context.coordinator
         textView.text = text
+        textView.isFindInteractionEnabled = true
         return textView
     }
 
@@ -40,6 +43,10 @@ struct RichTextEditor: UIViewRepresentable {
         if let wrap = pendingWrap {
             context.coordinator.applyWrap(wrap, to: uiView)
             DispatchQueue.main.async { pendingWrap = nil }
+        }
+        if presentFind {
+            uiView.findInteraction?.presentFindNavigator(showingReplace: false)
+            DispatchQueue.main.async { presentFind = false }
         }
     }
 

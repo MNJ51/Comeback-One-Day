@@ -2,25 +2,38 @@
 //  JournalAppearancePickerSheet.swift
 //  Comebackone day 1.2
 //
-//  Journal creation, Apple Journal-style: name + color + icon, with a live
-//  circular preview. Scoped to creation only — editing an existing
-//  journal's appearance later is a natural fast-follow, not built here.
-//  Floating circular X/checkmark controls instead of a system nav bar,
-//  matching this redesign's overall floating-toolbar visual language.
+//  Journal creation AND editing, Apple Journal-style: name + color + icon,
+//  with a live circular preview. Floating circular X/checkmark controls
+//  instead of a system nav bar, matching this redesign's overall
+//  floating-toolbar visual language.
 //
 
 import SwiftUI
 
 struct JournalAppearancePickerSheet: View {
     @Environment(\.dismiss) private var dismiss
+    /// Set when editing an already-existing journal — lets the caller
+    /// (JournalListView) know the name to rename/move appearance from if
+    /// the saved name differs from this one.
+    let existingName: String?
     let onSave: (String, JournalAppearance) -> Void
 
-    @State private var name = ""
-    @State private var selectedColorOption: JournalColorOption = .plum
+    @State private var name: String
+    @State private var selectedColorOption: JournalColorOption
     @State private var customColor: Color?
-    @State private var selectedIcon = JournalAppearance.default.iconName
+    @State private var selectedIcon: String
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 14), count: 7)
+
+    init(existingName: String? = nil, existingAppearance: JournalAppearance? = nil, onSave: @escaping (String, JournalAppearance) -> Void) {
+        self.existingName = existingName
+        self.onSave = onSave
+        let appearance = existingAppearance ?? .default
+        _name = State(initialValue: existingName ?? "")
+        _selectedColorOption = State(initialValue: appearance.color)
+        _customColor = State(initialValue: appearance.customColorHex.flatMap { Color(hex: $0) })
+        _selectedIcon = State(initialValue: appearance.iconName)
+    }
 
     private var resolvedColor: Color {
         customColor ?? selectedColorOption.color
@@ -33,6 +46,9 @@ struct JournalAppearancePickerSheet: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 28) {
+                Text(existingName == nil ? "New Journal" : "Edit Journal")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.secondary)
                 previewCircle
                 nameField
                 colorGrid

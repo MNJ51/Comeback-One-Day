@@ -796,6 +796,32 @@ struct JournalEntryCodingTests {
         #expect(decoded.mood == nil)
     }
 
+    @Test func roundTripPreservesIsBookmarked() throws {
+        let entry = JournalEntry(text: "Worth remembering.", isBookmarked: true)
+        let data = try JSONEncoder().encode(entry)
+        let decoded = try JSONDecoder().decode(JournalEntry.self, from: data)
+        #expect(decoded == entry)
+        #expect(decoded.isBookmarked == true)
+    }
+
+    /// Same backward-compatibility guarantee as `mood`/`audioFilename`:
+    /// entries persisted before bookmarking existed have no such key at all,
+    /// and must decode to `nil` (not bookmarked), not fail to decode.
+    @Test func decodesOldEntryMissingIsBookmarkedKey() throws {
+        let json = """
+        {
+            "id": "08D8A3C4-A65B-4119-876A-C7789A460D4F",
+            "date": 800000000,
+            "text": "Written before bookmarking existed.",
+            "photoFilenames": [],
+            "videoFilenames": [],
+            "dateAdded": 800000000
+        }
+        """
+        let decoded = try JSONDecoder().decode(JournalEntry.self, from: Data(json.utf8))
+        #expect(decoded.isBookmarked == nil)
+    }
+
     @Test func roundTripPreservesTitle() throws {
         let entry = JournalEntry(title: "A Great Day", text: "Explored the old town.")
         let data = try JSONEncoder().encode(entry)
