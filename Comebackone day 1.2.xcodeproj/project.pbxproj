@@ -30,6 +30,7 @@
 		769A8A3693FDDC806A6B0329 /* JournalInsightsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14D0107B2E9D21234281D66E /* JournalInsightsView.swift */; };
 		6DC5183BF8ACD59EA54D1281 /* JournalLockManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9506125F19021004C5492EE2 /* JournalLockManager.swift */; };
 		61C62E81B43BDC69C14CBF88 /* JournalReminderManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0144F650F7EA8E737DF06541 /* JournalReminderManager.swift */; };
+		04838F858F3B43E39A3B25C8 /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD8FD94F99D045848EAF752D /* HealthKitManager.swift */; };
 		217D4B1A8169BD13B684F763 /* JournalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C73F2ED49DE9189355BC92 /* JournalView.swift */; };
 		3F8305C959AA83C2474924CE /* VideoStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78CCA6D84FECE0FA9578DB1F /* VideoStore.swift */; };
 		7F4AB1B8A37140532F2D905E /* VideoPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23A4253AA14AA0C95623E1B7 /* VideoPlayerView.swift */; };
@@ -115,6 +116,7 @@
 		14D0107B2E9D21234281D66E /* JournalInsightsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalInsightsView.swift; sourceTree = "<group>"; };
 		9506125F19021004C5492EE2 /* JournalLockManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalLockManager.swift; sourceTree = "<group>"; };
 		0144F650F7EA8E737DF06541 /* JournalReminderManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalReminderManager.swift; sourceTree = "<group>"; };
+		BD8FD94F99D045848EAF752D /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
 		B2C73F2ED49DE9189355BC92 /* JournalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalView.swift; sourceTree = "<group>"; };
 		78CCA6D84FECE0FA9578DB1F /* VideoStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoStore.swift; sourceTree = "<group>"; };
 		23A4253AA14AA0C95623E1B7 /* VideoPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlayerView.swift; sourceTree = "<group>"; };
@@ -250,6 +252,7 @@
 				14D0107B2E9D21234281D66E /* JournalInsightsView.swift */,
 				9506125F19021004C5492EE2 /* JournalLockManager.swift */,
 				0144F650F7EA8E737DF06541 /* JournalReminderManager.swift */,
+				BD8FD94F99D045848EAF752D /* HealthKitManager.swift */,
 				B2C73F2ED49DE9189355BC92 /* JournalView.swift */,
 				D9785C3A2A8BD75296B34DEB /* WeatherService.swift */,
 				6E8C88C7F221D4F99983D630 /* VoiceNoteStore.swift */,
@@ -459,6 +462,7 @@
 				769A8A3693FDDC806A6B0329 /* JournalInsightsView.swift in Sources */,
 				6DC5183BF8ACD59EA54D1281 /* JournalLockManager.swift in Sources */,
 				61C62E81B43BDC69C14CBF88 /* JournalReminderManager.swift in Sources */,
+				04838F858F3B43E39A3B25C8 /* HealthKitManager.swift in Sources */,
 				217D4B1A8169BD13B684F763 /* JournalView.swift in Sources */,
 				3F8305C959AA83C2474924CE /* VideoStore.swift in Sources */,
 				7F4AB1B8A37140532F2D905E /* VideoPlayerView.swift in Sources */,

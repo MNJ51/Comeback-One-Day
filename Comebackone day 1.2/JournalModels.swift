@@ -45,10 +45,12 @@ struct JournalEntry: Identifiable, Codable, Equatable {
     /// missing key decodes to nil under synthesized Codable — where a
     /// non-optional array default would not be.
     var audioFilename: String?
-    /// A simple in-app mood tag — not Apple's system-level HealthKit State of
-    /// Mind (third-party apps can't replicate that as a UI, only write
-    /// individual samples to it), just a lightweight per-entry feeling tag.
-    /// Optional for the same Codable-safety reason as `audioFilename`.
+    /// A simple in-app mood tag. When `HealthKitManager.isHealthKitEnabled`,
+    /// tagging or changing this also writes an `HKStateOfMind` sample to
+    /// Apple Health (see `JournalEntryFormSheet.save()`) — this property
+    /// itself stays the lightweight per-entry tag either way, not a mirror
+    /// of HealthKit state. Optional for the same Codable-safety reason as
+    /// `audioFilename`.
     var mood: JournalMood?
     /// Marks an entry as bookmarked, Apple Journal-style. Optional for the
     /// same Codable-safety reason as `audioFilename`/`mood` — a non-Optional

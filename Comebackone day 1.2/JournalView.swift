@@ -975,6 +975,7 @@ struct JournalEntryFormSheet: View {
     @EnvironmentObject var journalStore: JournalStore
     @EnvironmentObject var store: MemoryStore
     @EnvironmentObject var locationManager: LocationManager
+    @EnvironmentObject var healthKitManager: HealthKitManager
     @Environment(\.dismiss) private var dismiss
 
     /// A photo already on disk (editing) or newly picked bytes (not yet saved).
@@ -1747,6 +1748,11 @@ struct JournalEntryFormSheet: View {
                 sourceAssetIdentifiers: sourceAssetIdentifiers
             ))
         }
+
+        if let mood, healthKitManager.isHealthKitEnabled, mood != entry?.mood {
+            Task { await healthKitManager.save(mood: mood, date: date) }
+        }
+
         dismiss()
     }
 }

@@ -17,6 +17,10 @@
 	<string>Come Back One Day uses Face ID to keep your journal entries private.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Come Back One Day looks for recent photo moments in your library to suggest as journal entries.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Come Back One Day looks for your Health data to avoid duplicating mood entries.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Come Back One Day uses your journal mood tags to update your State of Mind in Health.</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-3940256099942544~1458002511</string>
 	<key>SKAdNetworkItems</key>

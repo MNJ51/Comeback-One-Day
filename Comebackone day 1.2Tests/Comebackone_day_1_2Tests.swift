@@ -1167,3 +1167,22 @@ struct EventReminderManagerTests {
         #expect(fireDate == expected)
     }
 }
+
+struct HealthKitManagerTests {
+    @Test func valenceMapsAmazingToPositiveOne() {
+        #expect(HealthKitManager.valence(for: .amazing) == 1.0)
+    }
+
+    @Test func valenceMapsRoughToNegativeOne() {
+        #expect(HealthKitManager.valence(for: .rough) == -1.0)
+    }
+
+    @Test func valenceMapsOkayToZero() {
+        #expect(HealthKitManager.valence(for: .okay) == 0.0)
+    }
+
+    @Test func valenceIsMonotonicAcrossAllMoodCases() {
+        let ordered = [JournalMood.rough, .down, .okay, .good, .amazing].map(HealthKitManager.valence)
+        #expect(ordered == ordered.sorted())
+    }
+}

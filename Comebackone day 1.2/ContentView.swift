@@ -58,6 +58,7 @@ struct ContentView: View {
     @StateObject private var journalLockManager = JournalLockManager()
     @StateObject private var journalReminderManager = JournalReminderManager()
     @StateObject private var eventReminderManager = EventReminderManager()
+    @StateObject private var healthKitManager = HealthKitManager()
     @Environment(\.scenePhase) private var scenePhase
     @State private var pendingImport: TravelMemory?
     @State private var selectedTab: AppTab = .map
@@ -129,6 +130,7 @@ struct ContentView: View {
         .environmentObject(journalLockManager)
         .environmentObject(journalReminderManager)
         .environmentObject(eventReminderManager)
+        .environmentObject(healthKitManager)
         .environment(\.bottomBarReservedHeight, bottomReservedHeight)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {

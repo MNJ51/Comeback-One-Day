@@ -195,6 +195,7 @@ private struct SettingsButton: View {
     @EnvironmentObject var journalLockManager: JournalLockManager
     @EnvironmentObject var journalReminderManager: JournalReminderManager
     @EnvironmentObject var eventReminderManager: EventReminderManager
+    @EnvironmentObject var healthKitManager: HealthKitManager
     @State private var showingSettings = false
 
     var body: some View {
@@ -210,6 +211,7 @@ private struct SettingsButton: View {
                 .environmentObject(journalLockManager)
                 .environmentObject(journalReminderManager)
                 .environmentObject(eventReminderManager)
+                .environmentObject(healthKitManager)
         }
     }
 }
@@ -220,6 +222,7 @@ private struct SettingsSheet: View {
     @EnvironmentObject var journalLockManager: JournalLockManager
     @EnvironmentObject var journalReminderManager: JournalReminderManager
     @EnvironmentObject var eventReminderManager: EventReminderManager
+    @EnvironmentObject var healthKitManager: HealthKitManager
     @Environment(\.dismiss) private var dismiss
 
     /// DatePicker needs a Date; the manager stores hour/minute as
@@ -277,6 +280,23 @@ private struct SettingsSheet: View {
                     Text("Journal")
                 } footer: {
                     Text("A daily notification nudging you to write in your journal.")
+                }
+
+                Section {
+                    Toggle("Save Mood to Health", isOn: Binding(
+                        get: { healthKitManager.isHealthKitEnabled },
+                        set: { newValue in
+                            if newValue {
+                                healthKitManager.enable()
+                            } else {
+                                healthKitManager.disable()
+                            }
+                        }
+                    ))
+                } header: {
+                    Text("Health")
+                } footer: {
+                    Text("Writes a State of Mind entry to Apple Health whenever you tag a mood on a journal entry.")
                 }
 
                 Section {
