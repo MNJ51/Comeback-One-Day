@@ -1095,6 +1095,14 @@ struct JournalEntryFormSheet: View {
         NavigationStack {
             composerBody
                 .toolbar(.hidden, for: .navigationBar)
+                // Without this, a downward drag on a short entry (nothing to
+                // scroll yet) is captured entirely by the sheet's own
+                // swipe-to-dismiss gesture instead of the ScrollView — a
+                // partial dismiss-then-bounce-back that can leave content
+                // shifted up under topFloatingControls. Matches Apple
+                // Journal's own composer, which also only exits via the
+                // back chevron, never a swipe.
+                .interactiveDismissDisabled()
                 .safeAreaInset(edge: .top) { topFloatingControls }
                 .safeAreaInset(edge: .bottom) { bottomFloatingToolbar }
                 .sheet(isPresented: $showingPlacePicker) {
@@ -1152,6 +1160,7 @@ struct JournalEntryFormSheet: View {
             .padding(.top, 60)
             .padding(.bottom, 76)
         }
+        .scrollBounceBehavior(.basedOnSize)
         .background(Color(.systemBackground))
     }
 
