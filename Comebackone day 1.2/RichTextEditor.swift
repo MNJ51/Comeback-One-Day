@@ -54,6 +54,18 @@ struct RichTextEditor: UIViewRepresentable {
         Coordinator(self)
     }
 
+    /// Without this, SwiftUI falls back to the UITextView's own
+    /// intrinsicContentSize for a non-scrolling text view — which, for a
+    /// long body, can come back badly wrong (the composer renders as if
+    /// zoomed into a narrow center strip, chevron/checkmark and most of
+    /// each line clipped off both edges). Computing the height ourselves
+    /// for the width SwiftUI actually proposed sidesteps that.
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
+        guard let width = proposal.width else { return nil }
+        let fitting = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        return CGSize(width: width, height: fitting.height)
+    }
+
     final class Coordinator: NSObject, UITextViewDelegate {
         let parent: RichTextEditor
 
