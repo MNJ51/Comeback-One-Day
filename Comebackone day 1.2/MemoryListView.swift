@@ -185,6 +185,7 @@ private struct SettingsButton: View {
     @EnvironmentObject var adsManager: AdsManager
     @EnvironmentObject var journalLockManager: JournalLockManager
     @EnvironmentObject var journalReminderManager: JournalReminderManager
+    @EnvironmentObject var eventReminderManager: EventReminderManager
     @State private var showingSettings = false
 
     var body: some View {
@@ -199,6 +200,7 @@ private struct SettingsButton: View {
                 .environmentObject(adsManager)
                 .environmentObject(journalLockManager)
                 .environmentObject(journalReminderManager)
+                .environmentObject(eventReminderManager)
         }
     }
 }
@@ -208,6 +210,7 @@ private struct SettingsSheet: View {
     @EnvironmentObject var adsManager: AdsManager
     @EnvironmentObject var journalLockManager: JournalLockManager
     @EnvironmentObject var journalReminderManager: JournalReminderManager
+    @EnvironmentObject var eventReminderManager: EventReminderManager
     @Environment(\.dismiss) private var dismiss
 
     /// DatePicker needs a Date; the manager stores hour/minute as
@@ -265,6 +268,42 @@ private struct SettingsSheet: View {
                     Text("Journal")
                 } footer: {
                     Text("A daily notification nudging you to write in your journal.")
+                }
+
+                Section {
+                    Toggle("Notify Me Before Events", isOn: Binding(
+                        get: { eventReminderManager.upcomingNudgesEnabled },
+                        set: { newValue in
+                            if newValue {
+                                eventReminderManager.enableUpcomingNudges()
+                            } else {
+                                eventReminderManager.disableUpcomingNudges()
+                            }
+                        }
+                    ))
+                    if eventReminderManager.upcomingNudgesEnabled {
+                        Picker("Remind Me", selection: $eventReminderManager.upcomingLeadTime) {
+                            ForEach(EventReminderLeadTime.allCases) { leadTime in
+                                Text(leadTime.label).tag(leadTime)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+
+                    Toggle("Remind Me a Year Later", isOn: Binding(
+                        get: { eventReminderManager.memoryNudgesEnabled },
+                        set: { newValue in
+                            if newValue {
+                                eventReminderManager.enableMemoryNudges()
+                            } else {
+                                eventReminderManager.disableMemoryNudges()
+                            }
+                        }
+                    ))
+                } header: {
+                    Text("Events")
+                } footer: {
+                    Text("Get a notification before an upcoming event, and a reminder a year after an event you attended.")
                 }
 
                 Section {

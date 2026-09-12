@@ -42,6 +42,7 @@
 		9AEB07D7E3A7AD1AA7C7AD4E /* MemoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EBDC1736A6B06BF24DAF1830 /* MemoryStore.swift */; };
 		A5E47B63B2EA0718BC05D37D /* AddMemoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6D1949ADAE89F7BE996D112 /* AddMemoryView.swift */; };
 		E025BE385DC73CA13A8B1091 /* FindView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AA61F23CB07422C6862481F /* FindView.swift */; };
+		A356F8C302DB4B6F279A2148 /* EventReminderManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDDA92751039DB0E050F2D5 /* EventReminderManager.swift */; };
 		87D7D49628C76F0FF66590C4 /* JournalAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = D41D65EF270E5829CF3FD0D5 /* JournalAppearance.swift */; };
 		C29B89285BAB9595D65733FB /* JournalAppearancePickerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08D8B21C88644011E6FC03A5 /* JournalAppearancePickerSheet.swift */; };
 		EC5790CFE7FFB3A2924C60B6 /* AudioRecordingSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF53396584B613DDE6E607A4 /* AudioRecordingSheet.swift */; };
@@ -122,6 +123,7 @@
 		FF17CC4EF63A8F603FD5D7E9 /* ItineraryRouteMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItineraryRouteMapView.swift; sourceTree = "<group>"; };
 		B6D1949ADAE89F7BE996D112 /* AddMemoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddMemoryView.swift; sourceTree = "<group>"; };
 		9AA61F23CB07422C6862481F /* FindView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindView.swift; sourceTree = "<group>"; };
+		DDDDA92751039DB0E050F2D5 /* EventReminderManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventReminderManager.swift; sourceTree = "<group>"; };
 		D41D65EF270E5829CF3FD0D5 /* JournalAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalAppearance.swift; sourceTree = "<group>"; };
 		08D8B21C88644011E6FC03A5 /* JournalAppearancePickerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalAppearancePickerSheet.swift; sourceTree = "<group>"; };
 		BF53396584B613DDE6E607A4 /* AudioRecordingSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRecordingSheet.swift; sourceTree = "<group>"; };
@@ -207,6 +209,7 @@
 				BC28F3C5BBF45DB055104141 /* Comebackone_day_1_2App.swift */,
 				B6D1949ADAE89F7BE996D112 /* AddMemoryView.swift */,
 				9AA61F23CB07422C6862481F /* FindView.swift */,
+				DDDDA92751039DB0E050F2D5 /* EventReminderManager.swift */,
 				D41D65EF270E5829CF3FD0D5 /* JournalAppearance.swift */,
 				08D8B21C88644011E6FC03A5 /* JournalAppearancePickerSheet.swift */,
 				BF53396584B613DDE6E607A4 /* AudioRecordingSheet.swift */,
@@ -414,6 +417,7 @@
 				0A42D761EBA492EF0120F966 /* BannerAdView.swift in Sources */,
 				A5E47B63B2EA0718BC05D37D /* AddMemoryView.swift in Sources */,
 				E025BE385DC73CA13A8B1091 /* FindView.swift in Sources */,
+				A356F8C302DB4B6F279A2148 /* EventReminderManager.swift in Sources */,
 				87D7D49628C76F0FF66590C4 /* JournalAppearance.swift in Sources */,
 				C29B89285BAB9595D65733FB /* JournalAppearancePickerSheet.swift in Sources */,
 				EC5790CFE7FFB3A2924C60B6 /* AudioRecordingSheet.swift in Sources */,

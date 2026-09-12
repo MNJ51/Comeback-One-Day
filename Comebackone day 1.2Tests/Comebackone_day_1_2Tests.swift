@@ -1117,3 +1117,53 @@ struct EventSortingTests {
         #expect(attended.map(\.name) == ["Past Show"])
     }
 }
+
+struct EventReminderManagerTests {
+    private static func event(daysFromNow: Int, attended: Bool = false) -> Event {
+        let date = Calendar.current.date(byAdding: .day, value: daysFromNow, to: Date())!
+        return Event(name: "Test Event", date: date, latitude: 0, longitude: 0, attended: attended)
+    }
+
+    @Test func upcomingFireDateIsNilForAnAttendedEvent() {
+        let event = Self.event(daysFromNow: 30, attended: true)
+        #expect(EventReminderManager.upcomingFireDate(for: event, leadTime: .oneWeek) == nil)
+    }
+
+    @Test func upcomingFireDateIsNilOnceTheLeadTimeAdjustedDateHasPassed() {
+        // A one-month lead time on an event only 3 days away has already "passed".
+        let event = Self.event(daysFromNow: 3)
+        #expect(EventReminderManager.upcomingFireDate(for: event, leadTime: .oneMonth) == nil)
+    }
+
+    @Test func upcomingFireDateIsCorrectForOneWeekLeadTime() {
+        let event = Self.event(daysFromNow: 30)
+        let fireDate = EventReminderManager.upcomingFireDate(for: event, leadTime: .oneWeek)
+        let expected = Calendar.current.date(byAdding: .day, value: -7, to: event.date)
+        #expect(fireDate == expected)
+    }
+
+    @Test func upcomingFireDateIsCorrectForOneMonthLeadTime() {
+        let event = Self.event(daysFromNow: 60)
+        let fireDate = EventReminderManager.upcomingFireDate(for: event, leadTime: .oneMonth)
+        let expected = Calendar.current.date(byAdding: .month, value: -1, to: event.date)
+        #expect(fireDate == expected)
+    }
+
+    @Test func memoryFireDateIsNilForANonAttendedEvent() {
+        let event = Self.event(daysFromNow: -30)
+        #expect(EventReminderManager.memoryFireDate(for: event) == nil)
+    }
+
+    @Test func memoryFireDateIsNilOnceTheAnniversaryHasPassed() {
+        // Attended more than 12 months ago — the anniversary is already behind us.
+        let event = Self.event(daysFromNow: -400, attended: true)
+        #expect(EventReminderManager.memoryFireDate(for: event) == nil)
+    }
+
+    @Test func memoryFireDateIsCorrectForARecentlyAttendedEvent() {
+        let event = Self.event(daysFromNow: -30, attended: true)
+        let fireDate = EventReminderManager.memoryFireDate(for: event)
+        let expected = Calendar.current.date(byAdding: .month, value: 12, to: event.date)
+        #expect(fireDate == expected)
+    }
+}

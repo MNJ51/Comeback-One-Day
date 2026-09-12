@@ -24,6 +24,7 @@ struct ContentView: View {
     @StateObject private var adsManager = AdsManager()
     @StateObject private var journalLockManager = JournalLockManager()
     @StateObject private var journalReminderManager = JournalReminderManager()
+    @StateObject private var eventReminderManager = EventReminderManager()
     @Environment(\.scenePhase) private var scenePhase
     @State private var pendingImport: TravelMemory?
     @State private var selectedTab: AppTab = .map
@@ -88,6 +89,7 @@ struct ContentView: View {
         .environmentObject(adsManager)
         .environmentObject(journalLockManager)
         .environmentObject(journalReminderManager)
+        .environmentObject(eventReminderManager)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task {
@@ -99,9 +101,13 @@ struct ContentView: View {
         }
         .task {
             locationManager.updateMonitoredRegions(for: store.memories)
+            eventReminderManager.updateSchedule(for: eventStore.events)
         }
         .onChange(of: store.memories) { _, newMemories in
             locationManager.updateMonitoredRegions(for: newMemories)
+        }
+        .onChange(of: eventStore.events) { _, newEvents in
+            eventReminderManager.updateSchedule(for: newEvents)
         }
         .onOpenURL { url in
             if let imported = TravelMemory(shareURL: url) {
