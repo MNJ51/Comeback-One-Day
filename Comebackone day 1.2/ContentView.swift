@@ -14,6 +14,39 @@ enum AppTab {
     case journal
 }
 
+/// Reports BottomActionBar's real rendered height, since it varies with
+/// Dynamic Type and safe-area insets — `BottomActionBar.height` is only a
+/// starting estimate for the very first layout pass, not a hard truth. Feeds
+/// `ContentView.bottomReservedHeight`, which sizes the reservation each tab's
+/// list content scrolls above; if the reservation ever falls short of the
+/// bar's true height, the last bit of content gets permanently hidden behind
+/// it with no way to scroll further to reveal it.
+private struct BottomActionBarHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = BottomActionBar.height
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
+/// The real, measured height each tab's own list content should reserve at
+/// its bottom so the last row can fully scroll clear of the floating
+/// BottomActionBar (and ad banner, when shown). A `.safeAreaInset` added at
+/// the TabView level does *not* propagate into a page's own List for scroll-
+/// content-inset purposes — confirmed empirically, a List only actually
+/// gains the extra scrollable room when it adds this inset on itself — so
+/// each tab's list reads this via the environment and applies its own
+/// `.safeAreaInset(edge: .bottom)`.
+private struct BottomBarReservedHeightKey: EnvironmentKey {
+    static let defaultValue: CGFloat = BottomActionBar.height
+}
+
+extension EnvironmentValues {
+    var bottomBarReservedHeight: CGFloat {
+        get { self[BottomBarReservedHeightKey.self] }
+        set { self[BottomBarReservedHeightKey.self] = newValue }
+    }
+}
+
 struct ContentView: View {
     @StateObject private var store = MemoryStore()
     @StateObject private var journalStore = JournalStore()
@@ -30,6 +63,10 @@ struct ContentView: View {
     @State private var selectedTab: AppTab = .map
     @State private var showingAddMemory = false
     @State private var showingQuickCamera = false
+    /// Starts at the static estimate, then self-corrects to the bar's real
+    /// rendered height (see BottomActionBarHeightKey) once the first layout
+    /// pass reports it.
+    @State private var bottomReservedHeight: CGFloat = BottomActionBar.height
 
     /// Ads only show on Map/Places (not Journal), and never once purchased away.
     /// Computed here — rather than nesting a safeAreaInset inside each tab's own
@@ -38,10 +75,6 @@ struct ContentView: View {
     /// even though it lays out with a correct, non-hidden frame.
     private var showsAdBanner: Bool {
         !adsManager.isAdRemoved && (selectedTab == .map || selectedTab == .places)
-    }
-
-    private var bottomReservedHeight: CGFloat {
-        BottomActionBar.height + (showsAdBanner ? AdsManager.bannerHeight : 0)
     }
 
     var body: some View {
@@ -79,6 +112,12 @@ struct ContentView: View {
                     showingQuickCamera: $showingQuickCamera
                 )
             }
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(key: BottomActionBarHeightKey.self, value: proxy.size.height)
+                }
+            )
+            .onPreferenceChange(BottomActionBarHeightKey.self) { bottomReservedHeight = $0 }
         }
         .environmentObject(store)
         .environmentObject(journalStore)
@@ -90,6 +129,7 @@ struct ContentView: View {
         .environmentObject(journalLockManager)
         .environmentObject(journalReminderManager)
         .environmentObject(eventReminderManager)
+        .environment(\.bottomBarReservedHeight, bottomReservedHeight)
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 Task {

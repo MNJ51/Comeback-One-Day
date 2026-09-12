@@ -82,6 +82,7 @@ struct JournalListView: View {
     @EnvironmentObject var store: MemoryStore
     @EnvironmentObject var locationManager: LocationManager
     @EnvironmentObject var journalAppearanceStore: JournalAppearanceStore
+    @Environment(\.bottomBarReservedHeight) private var bottomBarReservedHeight
     @State private var showingAddEntry = false
     @State private var selectedEntry: JournalEntry?
     @State private var filterJournal: String?
@@ -211,6 +212,14 @@ struct JournalListView: View {
                 }
             }
             .listStyle(.plain)
+            .safeAreaInset(edge: .bottom) {
+                // A safeAreaInset reserved at the TabView level (ContentView)
+                // does not reach this List for scroll-content-inset purposes
+                // — confirmed empirically, the last row stayed permanently
+                // covered by BottomActionBar until this List reserved the
+                // room itself.
+                Color.clear.frame(height: bottomBarReservedHeight)
+            }
             .refreshable {
                 await journalStore.syncNow()
             }

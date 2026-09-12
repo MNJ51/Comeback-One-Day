@@ -9,6 +9,7 @@ import StoreKit
 struct MemoryListView: View {
     @EnvironmentObject var store: MemoryStore
     @EnvironmentObject var eventStore: EventStore
+    @Environment(\.bottomBarReservedHeight) private var bottomBarReservedHeight
     @State private var selectedMemory: TravelMemory?
     @State private var showingEvents = false
     @State private var searchText = ""
@@ -100,6 +101,14 @@ struct MemoryListView: View {
                                 .onDelete { offsets in delete(offsets, from: group.memories) }
                             }
                         }
+                    }
+                    .safeAreaInset(edge: .bottom) {
+                        // A safeAreaInset reserved at the TabView level
+                        // (ContentView) does not reach this List for scroll-
+                        // content-inset purposes — the last row stays
+                        // permanently covered by BottomActionBar (and the ad
+                        // banner) until this List reserves the room itself.
+                        Color.clear.frame(height: bottomBarReservedHeight)
                     }
                 }
             }
