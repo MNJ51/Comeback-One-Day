@@ -60,10 +60,19 @@ struct RichTextEditor: UIViewRepresentable {
     /// zoomed into a narrow center strip, chevron/checkmark and most of
     /// each line clipped off both edges). Computing the height ourselves
     /// for the width SwiftUI actually proposed sidesteps that.
+    ///
+    /// The returned height is clamped to `minimumHeight` because callers
+    /// pairing this with `.frame(minHeight:)` would otherwise get a real
+    /// UITextView only as tall as one empty line, centered inside that
+    /// taller frame — most of the "editor" would be untappable dead space.
+    /// Reporting the true minimum here means the frame modifier is a no-op
+    /// and the whole visible box is actually the text view.
+    static let minimumHeight: CGFloat = 220
+
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
         guard let width = proposal.width else { return nil }
         let fitting = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
-        return CGSize(width: width, height: fitting.height)
+        return CGSize(width: width, height: max(fitting.height, Self.minimumHeight))
     }
 
     final class Coordinator: NSObject, UITextViewDelegate {

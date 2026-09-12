@@ -1152,7 +1152,6 @@ struct JournalEntryFormSheet: View {
                 contextFooter
 
                 RichTextEditor(text: $text, placeholder: "Start writing…", pendingWrap: $pendingWrap, presentFind: $presentFind)
-                    .frame(minHeight: 220)
 
                 attachmentsStrip
             }
