@@ -21,13 +21,11 @@
 	<string>Come Back One Day looks for your Health data to avoid duplicating mood entries.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Come Back One Day uses your journal mood tags to update your State of Mind in Health.</string>
-	<key>GADApplicationIdentifier</key>
-	<string>ca-app-pub-3940256099942544~1458002511</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>
 			<key>SKAdNetworkIdentifier</key>
-			<string>cstr6suwn9.skadnetwork</string>
+			<string>v9wttpbfk9.skadnetwork</string>
 		</dict>
 	</array>
 	<key>CFBundleURLTypes</key>

@@ -12,24 +12,28 @@ The Xcode project, targets, scheme, and source folder are all named `Comebackone
 
 ## Commands
 
+This project uses CocoaPods (for `FBAudienceNetwork`, which has no SPM distribution — see "Monetization" below), so **build against the `.xcworkspace`, not the bare `.xcodeproj`**, from here on:
+
 Build for the simulator:
 ```bash
-xcodebuild -project "Comebackone day 1.2.xcodeproj" -scheme "Comebackone day 1.2" -destination 'generic/platform=iOS Simulator' build
+xcodebuild -workspace "Comebackone day 1.2.xcworkspace" -scheme "Comebackone day 1.2" -destination 'generic/platform=iOS Simulator' build
 ```
 
 Run unit tests (Swift Testing framework, target `Comebackone day 1.2Tests`):
 ```bash
-xcodebuild test -project "Comebackone day 1.2.xcodeproj" -scheme "Comebackone day 1.2" -destination 'id=CF6D6D49-5427-44AF-965A-E49F58681583'
+xcodebuild test -workspace "Comebackone day 1.2.xcworkspace" -scheme "Comebackone day 1.2" -destination 'id=CF6D6D49-5427-44AF-965A-E49F58681583'
 ```
 
 Run a single test:
 ```bash
-xcodebuild test -project "Comebackone day 1.2.xcodeproj" -scheme "Comebackone day 1.2" -destination 'id=CF6D6D49-5427-44AF-965A-E49F58681583' -only-testing:"Comebackone day 1.2Tests/TravelMemoryCodingTests/roundTripPreservesAllFields"
+xcodebuild test -workspace "Comebackone day 1.2.xcworkspace" -scheme "Comebackone day 1.2" -destination 'id=CF6D6D49-5427-44AF-965A-E49F58681583' -only-testing:"Comebackone day 1.2Tests/TravelMemoryCodingTests/roundTripPreservesAllFields"
 ```
 
 The destination above is a UDID for an installed iPhone 17 Pro simulator (`xcrun simctl list devices available` to see what's actually installed on this Mac — device names/UDIDs vary by machine).
 
 There are no shared (`.xcscheme`) schemes checked into the project — Xcode/xcodebuild generates the default scheme from the target name automatically.
+
+After pulling `Podfile`/`Podfile.lock` changes, re-run `pod install` before building. CocoaPods needs a modern Ruby (macOS's built-in system Ruby, 2.6.x, is too old for current CocoaPods and several of its stdlib gem dependencies) — this machine's CocoaPods is installed under Homebrew's Ruby: `/opt/homebrew/lib/ruby/gems/4.0.0/bin/pod install`. The Xcode project also has `ENABLE_USER_SCRIPT_SANDBOXING = NO` (both Debug/Release configs) — CocoaPods' `[CP] Embed Pods Frameworks` script phase fails under Xcode's newer script-sandboxing with a vendored `.xcframework` pod like `FBAudienceNetwork`; don't re-enable it without re-testing that phase.
 
 ## Architecture
 
@@ -45,7 +49,7 @@ There are no shared (`.xcscheme`) schemes checked into the project — Xcode/xco
 
 **UI**: `ContentView` hosts a `TabView` (Map / Places / Journal) and owns the shared `MemoryStore` and `LocationManager`, handling `onOpenURL` for deep-link imports. `MapTabView` shows the map with category filter chips and buttons to add a place manually (`AddMemoryView`) or via quick camera capture (`QuickCameraView`). `LocationSearchService` wraps `MKLocalSearchCompleter` for place-name search in the add/edit forms.
 
-**Monetization** ([AdsManager.swift](Comebackone day 1.2/AdsManager.swift), [SubscriptionManager.swift](Comebackone day 1.2/SubscriptionManager.swift)): the app is free to download. `AdsManager` starts the Google Mobile Ads SDK and owns the StoreKit 2 non-consumable "Remove Ads" purchase (`com.michaeljee.Comebackone-day-1-1.removeads`); `SubscriptionManager` is the separate auto-renewing "Itinerary Plus" subscription that unlocks day-itinerary generation — both follow the same StoreKit 2 load/purchase/restore pattern and both need their product created in App Store Connect before they'll load for real (`Configuration.storekit` at the project root has both wired up for local testing without that — Xcode: Product > Scheme > Edit Scheme > Run > Options > StoreKit Configuration). `BannerAdView.swift`'s `AdBanner` wraps `GADBannerView` and hides itself once `AdsManager.isAdRemoved` is true; it's rendered directly in `ContentView`'s bottom overlay (alongside `BottomActionBar`), *not* nested inside `MapTabView`/`MemoryListView` — a `safeAreaInset` added from inside a `TabView` page lays out correctly (non-zero, non-hidden frame) but never actually paints, silently clipped by the page's own container. `AdsManager.bannerAdUnitID`, the `GADApplicationIdentifier` in Info.plist, and the `SKAdNetworkItems` list are all Google's public test values — swap in a real AdMob app/ad unit before shipping. AdMob has no way to restrict ad *category*; `AdsManager.contextualKeywords` just hints the request toward travel/food content, it doesn't guarantee it.
+**Monetization** ([AdsManager.swift](Comebackone day 1.2/AdsManager.swift), [SubscriptionManager.swift](Comebackone day 1.2/SubscriptionManager.swift)): the app is free to download. `AdsManager` starts the Meta Audience Network SDK (`FBAudienceNetwork`, added via CocoaPods — no official SPM distribution exists for it, see "Commands" above) and owns the StoreKit 2 non-consumable "Remove Ads" purchase (`com.michaeljee.Comebackone-day-1-1.removeads`); `SubscriptionManager` is the separate auto-renewing "Itinerary Plus" subscription that unlocks day-itinerary generation — both follow the same StoreKit 2 load/purchase/restore pattern and both need their product created in App Store Connect before they'll load for real (`Configuration.storekit` at the project root has both wired up for local testing without that — Xcode: Product > Scheme > Edit Scheme > Run > Options > StoreKit Configuration). `BannerAdView.swift`'s `AdBanner` wraps `FBAdView` and hides itself once `AdsManager.isAdRemoved` is true; it's rendered directly in `ContentView`'s bottom overlay (alongside `BottomActionBar`), *not* nested inside `MapTabView`/`MemoryListView` — a `safeAreaInset` added from inside a `TabView` page lays out correctly (non-zero, non-hidden frame) but never actually paints, silently clipped by the page's own container. `AdsManager.bannerPlacementID` is a placeholder — swap in a real Meta Audience Network placement ID before shipping (the Simulator gets test ads automatically regardless of placement ID; a real device needs `FBAdSettings.addTestDevice(...)` once). Meta Audience Network has been bidding-only since 2024 — `BannerAdView` still calls `FBAdView`'s deprecated `loadAd()` since no server-side bidding integration exists here; moving to `loadAdWithBidPayload:` (via a mediation partner or your own bidding endpoint) is a real prerequisite for serving genuine (non-test) ads in production, not something already wired up. Meta Audience Network has no request-level contextual-targeting equivalent to AdMob's old `GADRequest.keywords`.
 
 ## Bundle identifiers
 

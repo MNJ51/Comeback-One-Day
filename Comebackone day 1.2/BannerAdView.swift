@@ -4,29 +4,28 @@
 //
 
 import SwiftUI
-import GoogleMobileAds
+import FBAudienceNetwork
 
-/// Thin UIViewRepresentable around GADBannerView. Requests are tagged with
-/// AdsManager.contextualKeywords so AdMob's targeting leans toward travel/food
-/// content — see AdsManager.swift for why that's a hint, not a guarantee.
+/// Thin UIViewRepresentable around FBAdView. Sized directly off
+/// AdsManager.bannerHeight rather than an SDK-provided size constant —
+/// kFBAdSizeHeight50Banner's width is flexible/container-driven (unlike
+/// AdMob's fixed-size GADAdSizeBanner), and this keeps the AdBanner view
+/// reporting a real, stable height immediately rather than depending on the
+/// ad finishing its async load first, which is what ContentView's
+/// GeometryReader-based bottomReservedHeight measurement needs.
 private struct BannerAdView: UIViewRepresentable {
-    let adUnitID: String
+    let placementID: String
 
-    func makeUIView(context: Context) -> GADBannerView {
-        let banner = GADBannerView(adSize: GADAdSizeBanner)
-        banner.adUnitID = adUnitID
-        banner.rootViewController = UIApplication.shared.connectedScenes
+    func makeUIView(context: Context) -> FBAdView {
+        let rootViewController = UIApplication.shared.connectedScenes
             .compactMap { ($0 as? UIWindowScene)?.keyWindow }
             .first?.rootViewController
-
-        let request = GADRequest()
-        request.keywords = AdsManager.contextualKeywords
-        banner.load(request)
-
-        return banner
+        let adView = FBAdView(placementID: placementID, adSize: kFBAdSizeHeight50Banner, rootViewController: rootViewController)
+        adView.loadAd()
+        return adView
     }
 
-    func updateUIView(_ uiView: GADBannerView, context: Context) {}
+    func updateUIView(_ uiView: FBAdView, context: Context) {}
 }
 
 /// Drop this in wherever a bottom banner ad should appear — it hides itself
@@ -37,8 +36,8 @@ struct AdBanner: View {
 
     var body: some View {
         if !adsManager.isAdRemoved {
-            BannerAdView(adUnitID: AdsManager.bannerAdUnitID)
-                .frame(width: GADAdSizeBanner.size.width, height: GADAdSizeBanner.size.height)
+            BannerAdView(placementID: AdsManager.bannerPlacementID)
+                .frame(height: AdsManager.bannerHeight)
                 .frame(maxWidth: .infinity)
                 .background(.thickMaterial)
         }

@@ -2,28 +2,39 @@
 //  AdsManager.swift
 //  Comebackone day 1.2
 //
-//  Starts the Google Mobile Ads SDK and owns the StoreKit 2 "Remove Ads"
+//  Starts the Meta Audience Network SDK and owns the StoreKit 2 "Remove Ads"
 //  non-consumable purchase that turns banner ads off. StoreKit half mirrors
 //  SubscriptionManager's pattern — see Configuration.storekit for local
 //  testing without an App Store Connect product.
 //
-//  The bannerAdUnitID/keyword hints below use Google's official test values.
-//  AdMob has no per-app "only show category X" setting — the keywords just
-//  nudge its contextual targeting toward travel/food/hospitality ads; swap
-//  bannerAdUnitID for a real AdMob ad unit ID (and the GADApplicationIdentifier
-//  in Info.plist for your real AdMob App ID) before shipping.
+//  bannerPlacementID below is a placeholder — swap for a real Meta Audience
+//  Network placement ID (created on Meta's Audience Network dashboard) before
+//  shipping. No code change needed to test locally: the SDK automatically
+//  serves test ads to any app running on the Simulator, regardless of
+//  placement ID; testing on a real device needs
+//  `FBAdSettings.addTestDevice(FBAdSettings.testDeviceHash)` added once,
+//  logged from the console on first run.
+//
+//  Meta Audience Network has been bidding-only since 2024 — FBAdView's
+//  loadAd() is deprecated in favor of loadAdWithBidPayload:, which needs a
+//  bid payload from your own server-side bidding integration (typically via
+//  a mediation partner). This still uses the deprecated loadAd() since no
+//  bidding infrastructure exists here; that's a real follow-up before this
+//  can serve genuine (non-test) ads in production, not something this swap
+//  solves.
 //
 
 import StoreKit
-import GoogleMobileAds
+import FBAudienceNetwork
 import Combine
 
 @MainActor
 final class AdsManager: ObservableObject {
     static let removeAdsProductID = "com.michaeljee.Comebackone-day-1-1.removeads"
-    static let bannerAdUnitID = "ca-app-pub-3940256099942544/2934735716"
+    static let bannerPlacementID = "YOUR_PLACEMENT_ID"
     static let bannerHeight: CGFloat = 50
-    static let contextualKeywords = ["travel", "restaurants", "hotels", "vacation", "food", "sightseeing", "tourism"]
+    // Meta Audience Network has no request-level keyword/contextual-targeting
+    // API the way AdMob's GADRequest.keywords did — dropped, not replaced.
 
     @Published private(set) var isAdRemoved = false
     @Published private(set) var product: Product?
@@ -37,8 +48,7 @@ final class AdsManager: ObservableObject {
     private var updateListenerTask: Task<Void, Never>?
 
     init() {
-        GADMobileAds.sharedInstance().start(completionHandler: nil)
-        GADMobileAds.sharedInstance().requestConfiguration.maxAdContentRating = GADMaxAdContentRating.general
+        FBAudienceNetworkAds.initialize(with: nil, completionHandler: nil)
 
         updateListenerTask = listenForTransactionUpdates()
         Task {
