@@ -7,11 +7,12 @@
 //  SubscriptionManager's pattern — see Configuration.storekit for local
 //  testing without an App Store Connect product.
 //
-//  bannerPlacementID below is a placeholder — swap for a real Meta Audience
-//  Network placement ID (created on Meta's Audience Network dashboard) before
-//  shipping. No code change needed to test locally: the SDK automatically
-//  serves test ads to any app running on the Simulator, regardless of
-//  placement ID; testing on a real device needs
+//  bannerPlacementID is the real Banner/iOS placement ID for the "Come Back
+//  One Day" app in Meta's Monetization Manager (developers.facebook.com app
+//  ID 2053010865407582). It still only serves real, paid demand once the
+//  property's payout/tax details are completed there — until then, and on
+//  the Simulator regardless, it serves test creatives. Testing on a real
+//  device before that needs
 //  `FBAdSettings.addTestDevice(FBAdSettings.testDeviceHash)` added once,
 //  logged from the console on first run.
 //
@@ -31,7 +32,7 @@ import Combine
 @MainActor
 final class AdsManager: ObservableObject {
     static let removeAdsProductID = "com.michaeljee.Comebackone-day-1-1.removeads"
-    static let bannerPlacementID = "YOUR_PLACEMENT_ID"
+    static let bannerPlacementID = "2053010865407582_2053011572074178"
     static let bannerHeight: CGFloat = 50
     // Meta Audience Network has no request-level keyword/contextual-targeting
     // API the way AdMob's GADRequest.keywords did — dropped, not replaced.
